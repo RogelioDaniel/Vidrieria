@@ -3,6 +3,7 @@ import { Inter, IBM_Plex_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { GlassIntro } from "@/components/glass-intro";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -65,6 +66,7 @@ export default function RootLayout({
         className={`${inter.variable} ${plexMono.variable} ${fraunces.variable} antialiased bg-background text-foreground font-sans`}
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+          <GlassIntro />
           {children}
           <Toaster richColors position="bottom-right" />
         </ThemeProvider>
