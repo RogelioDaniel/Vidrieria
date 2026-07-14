@@ -68,7 +68,7 @@ export function Hero() {
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.4, duration: 0.8, ease: easeInOutCubic }}
-        className="absolute left-5 top-20 z-20 sm:left-8 sm:top-24"
+        className="absolute left-5 top-20 z-20 hidden sm:left-8 sm:top-24 sm:block"
       >
         <div className="hud-label text-[#c2d0d8]/70">est · 1998 · CDMX</div>
         <div className="mt-2 font-mono text-[0.65rem] leading-relaxed text-[#c2d0d8]/50">
@@ -82,7 +82,7 @@ export function Hero() {
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.5, duration: 0.8, ease: easeInOutCubic }}
-        className="absolute right-5 top-20 z-20 text-right sm:right-8 sm:top-24"
+        className="absolute right-5 top-20 z-20 hidden text-right sm:right-8 sm:top-24 sm:block"
       >
         <div className="hud-label text-[#c2d0d8]/70">cristal · 6mm · templado</div>
         <div className="mt-2 font-mono text-[0.65rem] leading-relaxed text-[#c2d0d8]/50">

@@ -320,19 +320,15 @@ function hasWebGL(): boolean {
 }
 
 export function GlassIntro() {
-  const [active, setActive] = React.useState(false)
+  // Starts active so the overlay is server-rendered and covers the page from
+  // the very first paint — otherwise the landing flashes for a frame before
+  // the client mounts the intro. It plays on every load, then removes itself.
+  const [active, setActive] = React.useState(true)
   const [progress, setProgress] = React.useState(0)
   const [phase, setPhase] = React.useState<'break' | 'rebuild'>('break')
   const mountRef = React.useRef<HTMLDivElement | null>(null)
 
-  // Decide whether to play (client-only, once per session).
-  React.useEffect(() => {
-    if (typeof window === 'undefined') return
-    // Plays on every page load — no session cache, it's part of the arrival.
-    setActive(true)
-  }, [])
-
-  // Run the overture only once the overlay (and its mount point) is in the DOM.
+  // Run the overture once the overlay (and its mount point) is in the DOM.
   React.useEffect(() => {
     if (!active) return
 
