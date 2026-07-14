@@ -1,0 +1,255 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   PRISMA Vidriería — Design Tokens
+   Palette: cool frost-glass + warm obsidian + copper accent
+   Deliberately avoids AI-default cream+terracotta.
+   ============================================================ */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-plex-mono);
+  --font-display: var(--font-fraunces);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.25rem;
+
+  /* Core palette — frost glass + obsidian + copper */
+  --vidrio: #e6e8ea;        /* pale frost glass background */
+  --vidrio-soft: #eef0f1;   /* lighter frost */
+  --plata: #aeb4bc;         /* mid silver */
+  --plata-dark: #7f858f;    /* deep silver */
+  --obsidiana: #100f0d;     /* warm obsidian black */
+  --humo: #5b564f;          /* warm smoke for secondary text */
+  --cobre: #b87333;         /* copper — the single precious warm accent */
+  --cobre-bright: #d18a45;  /* lighter copper for glows */
+  --cobre-deep: #8a541f;    /* deep copper */
+  --cristal: #c2d0d8;       /* cool glass-blue for technical accents */
+  --oro: #cda05e;           /* warm gold (used sparingly) */
+
+  --background: #e6e8ea;
+  --foreground: #100f0d;
+  --card: #fbfaf7;
+  --card-foreground: #100f0d;
+  --popover: #fbfaf7;
+  --popover-foreground: #100f0d;
+  --primary: #100f0d;
+  --primary-foreground: #eef0f1;
+  --secondary: #d8dadc;
+  --secondary-foreground: #100f0d;
+  --muted: #d4d6d8;
+  --muted-foreground: #5b564f;
+  --accent: #b87333;
+  --accent-foreground: #fbfaf7;
+  --destructive: #9a3a2a;
+  --border: rgba(16, 15, 13, 0.12);
+  --input: rgba(16, 15, 13, 0.14);
+  --ring: #b87333;
+  --chart-1: #b87333;
+  --chart-2: #c2d0d8;
+  --chart-3: #5b564f;
+  --chart-4: #cda05e;
+  --chart-5: #7f858f;
+  --sidebar: #eef0f1;
+  --sidebar-foreground: #100f0d;
+  --sidebar-primary: #100f0d;
+  --sidebar-primary-foreground: #eef0f1;
+  --sidebar-accent: #b87333;
+  --sidebar-accent-foreground: #fbfaf7;
+  --sidebar-border: rgba(16, 15, 13, 0.12);
+  --sidebar-ring: #b87333;
+}
+
+.dark {
+  --background: #100f0d;
+  --foreground: #e6e8ea;
+  --card: #1a1815;
+  --card-foreground: #e6e8ea;
+  --popover: #1a1815;
+  --popover-foreground: #e6e8ea;
+  --primary: #e6e8ea;
+  --primary-foreground: #100f0d;
+  --secondary: #26231f;
+  --secondary-foreground: #e6e8ea;
+  --muted: #26231f;
+  --muted-foreground: #aeb4bc;
+  --accent: #d18a45;
+  --accent-foreground: #100f0d;
+  --destructive: #c25442;
+  --border: rgba(230, 232, 234, 0.12);
+  --input: rgba(230, 232, 234, 0.16);
+  --ring: #d18a45;
+  --chart-1: #d18a45;
+  --chart-2: #c2d0d8;
+  --chart-3: #aeb4bc;
+  --chart-4: #cda05e;
+  --chart-5: #7f858f;
+  --sidebar: #1a1815;
+  --sidebar-foreground: #e6e8ea;
+  --sidebar-primary: #e6e8ea;
+  --sidebar-primary-foreground: #100f0d;
+  --sidebar-accent: #d18a45;
+  --sidebar-accent-foreground: #100f0d;
+  --sidebar-border: rgba(230, 232, 234, 0.12);
+  --sidebar-ring: #d18a45;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: var(--cobre);
+    color: #fbfaf7;
+  }
+}
+
+/* ============================================================
+   Signature: "lit-from-within" frosted glass
+   ============================================================ */
+.glass-panel {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.18) 45%, rgba(194,208,216,0.22) 100%);
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  border: 1px solid rgba(255,255,255,0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.6),
+    inset 0 -1px 0 rgba(184,115,51,0.08),
+    0 30px 60px -20px rgba(16,15,13,0.25);
+}
+
+.glass-card {
+  background: rgba(251, 250, 247, 0.72);
+  backdrop-filter: blur(12px) saturate(115%);
+  -webkit-backdrop-filter: blur(12px) saturate(115%);
+  border: 1px solid rgba(255,255,255,0.6);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 12px 32px -16px rgba(16,15,13,0.18);
+}
+
+/* Copper glow — the precious warm accent */
+.cobre-glow {
+  box-shadow: 0 0 0 1px rgba(184,115,51,0.35), 0 18px 50px -12px rgba(184,115,51,0.45);
+}
+
+/* HUD mono label */
+.hud-label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--humo);
+}
+
+/* Animated refraction sweep inside the hero glass */
+@keyframes refraction {
+  0%   { transform: translateX(-30%) skewX(-12deg); opacity: 0; }
+  35%  { opacity: 0.9; }
+  100% { transform: translateX(130%) skewX(-12deg); opacity: 0; }
+}
+.refraction-sweep {
+  animation: refraction 7s ease-in-out infinite;
+}
+
+@keyframes copper-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 0.95; transform: scale(1.04); }
+}
+.copper-pulse { animation: copper-pulse 4.5s ease-in-out infinite; }
+
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.marquee-track { animation: marquee 38s linear infinite; }
+
+@keyframes float-mote {
+  0%, 100% { transform: translateY(0) translateX(0); opacity: 0.4; }
+  50%      { transform: translateY(-18px) translateX(8px); opacity: 0.9; }
+}
+.float-mote { animation: float-mote 6s ease-in-out infinite; }
+
+/* Custom scrollbar — premium detail */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(16,15,13,0.18);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(184,115,51,0.45); background-clip: content-box; }
+
+/* Focus ring — visible keyboard focus (accessibility floor) */
+:focus-visible {
+  outline: 2px solid var(--cobre);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Section dividers encode the furnace journey (true sequence) */
+.furnace-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(184,115,51,0.4), transparent);
+}
+
+/* Number tabular figures for prices / specs */
+.tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }

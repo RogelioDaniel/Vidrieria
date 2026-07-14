@@ -1,0 +1,89 @@
+// PRISMA Vidriería de Autor — database schema
+// Premium Mexican glass atelier, CDMX
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  category     String   // cristales | espejos | templado | mamparas | barandales | vitrales | puertas | aluminio
+  summary      String
+  description  String
+  pricePerM2   Float    // MXN per square meter
+  thickness    String   // e.g. "6 mm", "10 mm"
+  finish       String   // e.g. "Incoloro", "Bronce", "Esmerilado"
+  features     String   // pipe-separated
+  image        String
+  featured     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Quote {
+  id            String   @id @default(cuid())
+  name          String
+  email         String
+  phone         String
+  productSlug   String
+  productName   String
+  width         Float    // cm
+  height        Float    // cm
+  finish        String
+  estimatedPrice Float   // MXN
+  status        String   @default("nueva") // nueva | en_revision | enviada
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Appointment {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  phone       String
+  serviceType String   // medicion | consulta | instalacion
+  date        String   // ISO date
+  time        String   // HH:mm
+  address     String
+  notes       String?
+  status      String   @default("solicitada")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  role      String
+  location  String
+  content   String
+  rating    Int      // 1-5
+  createdAt DateTime @default(now())
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  title       String
+  category    String
+  location    String
+  year        String
+  image       String
+  description String
+  createdAt   DateTime @default(now())
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  createdAt DateTime @default(now())
+}

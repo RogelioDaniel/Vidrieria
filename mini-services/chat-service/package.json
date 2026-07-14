@@ -1,0 +1,14 @@
+{
+  "name": "prisma-chat-service",
+  "version": "1.0.0",
+  "description": "PRISMA Vidriería — live chat + visitor presence socket.io service (port 3003)",
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot index.ts",
+    "start": "bun index.ts"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "socket.io": "^4.8.1"
+  }
+}
