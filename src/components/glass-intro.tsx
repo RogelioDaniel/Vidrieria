@@ -18,8 +18,6 @@
 import * as React from 'react'
 import * as THREE from 'three'
 
-const SESSION_KEY = 'prisma-intro-shown'
-
 // Palette (mirrors globals.css design tokens)
 const FROST = new THREE.Color('#c2d0d8')
 const COPPER = new THREE.Color('#d18a45')
@@ -29,14 +27,15 @@ const OBSIDIAN = '#100f0d'
 const RINGS = 8
 const SECTORS = 20
 
-// Timeline (seconds)
+// Timeline (seconds) — plays on every load, so it's paced to be legible
+// without overstaying its welcome (~4.6s total).
 const T = {
-  formIn: 0.45, // pane fades in intact
-  shatter: 1.35, // explode outward — the "loading" break
-  hold: 1.75, // shards suspended, progress fills
-  reconstruct: 2.95, // shards fly back, pane reforms
-  reveal: 3.35, // refraction flash + dissolve
-  end: 3.75, // remove from DOM
+  formIn: 0.55, // pane fades in intact
+  shatter: 1.7, // explode outward — the "loading" break
+  hold: 2.35, // shards suspended, progress fills
+  reconstruct: 3.75, // shards fly back, pane reforms
+  reveal: 4.2, // refraction flash + dissolve
+  end: 4.65, // remove from DOM
 }
 
 function easeInOutCubic(t: number) {
@@ -329,9 +328,7 @@ export function GlassIntro() {
   // Decide whether to play (client-only, once per session).
   React.useEffect(() => {
     if (typeof window === 'undefined') return
-    const force = new URLSearchParams(window.location.search).has('intro')
-    const seen = sessionStorage.getItem(SESSION_KEY)
-    if (seen && !force) return
+    // Plays on every page load — no session cache, it's part of the arrival.
     setActive(true)
   }, [])
 
@@ -355,7 +352,6 @@ export function GlassIntro() {
     }
 
     function finish() {
-      sessionStorage.setItem(SESSION_KEY, '1')
       document.body.style.overflow = ''
       setActive(false)
     }
