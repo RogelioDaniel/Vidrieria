@@ -138,11 +138,12 @@
     @apply border-border outline-ring/50;
   }
   html {
+    /* Smooth glide for anchor jumps and the SectionScroller's section-to-section
+       navigation. No CSS scroll-snap — it felt rigid; SectionScroller drives the
+       section stepping with a themed glass transition instead. */
     scroll-behavior: smooth;
-    /* Snap-scroll page modality: each gesture settles on a fixed section.
-       `proximity` (not mandatory) so sections taller than the viewport —
-       catálogo/agenda on mobile — still scroll freely inside. */
-    scroll-snap-type: y proximity;
+    /* Land sections just below the fixed 64px header. */
+    scroll-padding-top: 4rem;
   }
   body {
     @apply bg-background text-foreground;

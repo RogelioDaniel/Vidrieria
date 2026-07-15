@@ -10,28 +10,25 @@ import { Appointments } from '@/components/sections/appointments'
 import { Contact } from '@/components/sections/contact'
 import { SiteFooter } from '@/components/sections/site-footer'
 import { LiveChat } from '@/components/live-chat'
-import { SnapNavigation } from '@/components/snap-navigation'
+import { SectionScroller } from '@/components/section-scroller'
 
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <SiteHeader />
-      {/* Each wrapper is a snap target: scrolling settles section-by-section
-          (html has scroll-snap-type — see globals.css). Marquee is a thin
-          divider strip, so it rides along with catálogo instead of snapping. */}
       <main className="flex-1">
-        <div className="snap-start"><Hero /></div>
+        <Hero />
         <Marquee />
-        <div className="snap-start"><Catalog /></div>
-        <div className="snap-start"><QuoteCalculator /></div>
-        <div className="snap-start"><Projects /></div>
-        <div className="snap-start"><Process /></div>
-        <div className="snap-start"><Testimonials /></div>
-        <div className="snap-start"><Appointments /></div>
-        <div className="snap-start"><Contact /></div>
+        <Catalog />
+        <QuoteCalculator />
+        <Projects />
+        <Process />
+        <Testimonials />
+        <Appointments />
+        <Contact />
       </main>
-      <div className="snap-end"><SiteFooter /></div>
-      <SnapNavigation />
+      <SiteFooter />
+      <SectionScroller />
       <LiveChat />
     </div>
   )
