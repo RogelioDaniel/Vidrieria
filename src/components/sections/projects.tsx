@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'framer-motion'
-import { ArrowUpRight, Loader2, MapPin } from 'lucide-react'
+import { ArrowUpRight, ChevronLeft, ChevronRight, Loader2, MapPin } from 'lucide-react'
 import { GlassReveal } from '@/components/glass-reveal'
 
 type Project = {
@@ -30,15 +30,20 @@ const ease = [0.65, 0, 0.35, 1] as const
 
 export function Projects() {
   const reduce = useReducedMotion()
+  const carouselRef = React.useRef<HTMLDivElement>(null)
   const [projects, setProjects] = React.useState<Project[]>([])
   const [loading, setLoading] = React.useState(true)
   const [active, setActive] = React.useState('all')
 
   React.useEffect(() => {
     setLoading(true)
+    carouselRef.current?.scrollTo({ left: 0, behavior: 'auto' })
     const q = active === 'all' ? '' : `?category=${active}`
     fetch(`/api/projects${q}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('No se pudieron cargar las obras')
+        return r.json()
+      })
       .then((d) => {
         setProjects(d.projects ?? [])
         setLoading(false)
@@ -46,10 +51,19 @@ export function Projects() {
       .catch(() => setLoading(false))
   }, [active])
 
+  const moveCarousel = (direction: -1 | 1) => {
+    const node = carouselRef.current
+    if (!node) return
+    node.scrollBy({
+      left: direction * Math.max(280, node.clientWidth * 0.82),
+      behavior: reduce ? 'auto' : 'smooth',
+    })
+  }
+
   return (
-    <section id="proyectos" className="relative bg-background py-24 sm:py-32">
+    <section id="proyectos" className="viewport-section relative bg-background">
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
-        <div className="flex flex-col gap-6 border-b border-border pb-10 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-end md:justify-between lg:pb-6">
           <div className="max-w-2xl">
             <GlassReveal>
               <div className="mb-4 flex items-center gap-3">
@@ -63,12 +77,12 @@ export function Projects() {
               </h2>
             </GlassReveal>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="carousel-strip flex max-w-full gap-2 overflow-x-auto pb-1">
             {FILTERS.map((f) => (
               <button
                 key={f.id}
                 onClick={() => setActive(f.id)}
-                className={`h-8 border px-3 font-mono text-[0.62rem] uppercase tracking-[0.12em] transition-colors ${
+                className={`h-11 shrink-0 border px-3 font-mono text-[0.62rem] uppercase tracking-[0.12em] transition-colors sm:h-9 ${
                   active === f.id
                     ? 'border-foreground bg-foreground text-background'
                     : 'border-border text-foreground/60 hover:border-foreground/50'
@@ -81,11 +95,17 @@ export function Projects() {
         </div>
 
         {loading ? (
-          <div className="flex h-64 items-center justify-center">
+          <div className="flex h-[24rem] items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-accent" />
           </div>
         ) : (
-          <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <div className="relative mt-5">
+            <div
+              ref={carouselRef}
+              role="region"
+              aria-label="Carrusel de obras instaladas"
+              className="carousel-strip flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2"
+            >
             {projects.map((p, i) => (
               <motion.article
                 key={p.id}
@@ -93,11 +113,9 @@ export function Projects() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-60px' }}
                 transition={{ duration: 0.6, delay: (i % 3) * 0.08, ease }}
-                className={`group relative overflow-hidden border border-border ${
-                  i % 5 === 0 ? 'md:col-span-2' : ''
-                }`}
+                className="group relative min-w-0 shrink-0 basis-[88%] snap-start overflow-hidden border border-border sm:basis-[48%] lg:basis-[31.8%]"
               >
-                <div className={`relative overflow-hidden bg-muted ${i % 5 === 0 ? 'aspect-[16/9]' : 'aspect-[4/5]'}`}>
+                <div className="relative h-[22rem] overflow-hidden bg-muted sm:h-[23rem] lg:h-[24rem]">
                   <Image
                     src={p.image}
                     alt={p.title}
@@ -138,6 +156,39 @@ export function Projects() {
                 </div>
               </motion.article>
             ))}
+            </div>
+
+            {projects.length > 1 && (
+              <div className="mt-3 flex items-center justify-between">
+                <span className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-muted-foreground">
+                  {projects.length} obras · desliza para recorrer
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => moveCarousel(-1)}
+                    aria-label="Obras anteriores"
+                    className="flex h-11 w-11 items-center justify-center border border-border transition-colors hover:border-accent hover:text-accent"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveCarousel(1)}
+                    aria-label="Obras siguientes"
+                    className="flex h-11 w-11 items-center justify-center border border-border transition-colors hover:border-accent hover:text-accent"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!loading && projects.length === 0 && (
+          <div className="flex h-72 items-center justify-center font-mono text-sm uppercase tracking-[0.16em] text-muted-foreground">
+            sin obras en esta categoría
           </div>
         )}
       </div>

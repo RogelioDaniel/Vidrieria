@@ -303,6 +303,30 @@
 .dark ::-webkit-scrollbar-thumb { background: rgba(194,208,216,0.28); background-clip: content-box; }
 .dark ::-webkit-scrollbar-thumb:hover { background: rgba(209,138,69,0.55); background-clip: content-box; }
 
+/* Each guided stop reads as one workshop sheet beneath the 64px header.
+   Content may still grow under zoom or unusually short viewports: nothing is
+   clipped, and SectionScroller only advances once the real edge is reached. */
+.viewport-section {
+  display: grid;
+  min-height: calc(100svh - 4rem);
+  scroll-margin-top: 4rem;
+  align-items: center;
+  padding-block: clamp(1.25rem, 3.5svh, 2.75rem);
+}
+
+@supports (height: 100dvh) {
+  .viewport-section {
+    min-height: calc(100dvh - 4rem);
+  }
+}
+
+.carousel-strip {
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+.carousel-strip::-webkit-scrollbar { display: none; }
+
 /* Focus ring — visible keyboard focus (accessibility floor) */
 :focus-visible {
   outline: 2px solid var(--cobre);

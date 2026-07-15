@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { atelierProducts } from "@/data/atelier-content";
 import { computeQuote } from "@/lib/quote";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const product = await db.product.findUnique({ where: { slug: productSlug } });
+    const product = atelierProducts.find((item) => item.slug === productSlug);
     if (!product) {
       return NextResponse.json({ error: "Producto no encontrado." }, { status: 404 });
     }

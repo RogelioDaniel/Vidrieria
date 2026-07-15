@@ -46,6 +46,7 @@ export function QuoteCalculator() {
   const [width, setWidth] = React.useState('100')
   const [height, setHeight] = React.useState('120')
   const [finish, setFinish] = React.useState('Incoloro')
+  const [mobileStep, setMobileStep] = React.useState<0 | 1>(0)
 
   const [calc, setCalc] = React.useState<{ estimatedPrice: number; areaM2: number; product: string } | null>(null)
   const [calcLoading, setCalcLoading] = React.useState(false)
@@ -139,7 +140,7 @@ export function QuoteCalculator() {
   }
 
   return (
-    <section id="cotizador" className="relative overflow-hidden bg-[#100f0d] py-24 text-[#e6e8ea] sm:py-32">
+    <section id="cotizador" className="viewport-section relative overflow-hidden bg-[#100f0d] text-[#e6e8ea]">
       {/* ambient */}
       <div
         className="absolute inset-0 opacity-50"
@@ -149,20 +150,20 @@ export function QuoteCalculator() {
         }}
       />
       <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
-        <div className="flex flex-col gap-6 border-b border-white/10 pb-10 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-3 border-b border-white/10 pb-5 md:flex-row md:items-end md:justify-between md:gap-6 md:pb-7">
           <div className="max-w-2xl">
             <GlassReveal>
-              <div className="mb-4 flex items-center gap-3">
+              <div className="mb-2 flex items-center gap-3 sm:mb-3">
                 <span className="hud-label text-[#d18a45]">02 · cotizador</span>
                 <span className="h-px w-12 bg-[#b87333]/50" />
               </div>
-              <h2 className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl">
+              <h2 className="font-display text-3xl font-light leading-[1.02] tracking-[-0.02em] sm:text-4xl lg:text-5xl">
                 Precio al instante,
                 <br />
                 <span className="italic text-[#d18a45]">sin esperas.</span>
               </h2>
             </GlassReveal>
-            <p className="mt-4 max-w-md text-sm leading-relaxed text-[#c2d0d8]/70 sm:text-base">
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-[#c2d0d8]/70 sm:mt-3 sm:text-base">
               Elige el material, mide y obtén un estimado en tiempo real. Cuando
               lo confirmes, un asesor del taller revisa y programa la medición
               certificada.
@@ -174,17 +175,36 @@ export function QuoteCalculator() {
           </div>
         </div>
 
-        <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-12">
+        <div className="mt-4 grid grid-cols-2 border border-white/15 lg:hidden" aria-label="Pasos del cotizador">
+          <button
+            type="button"
+            onClick={() => setMobileStep(0)}
+            aria-current={mobileStep === 0 ? 'step' : undefined}
+            className={`min-h-11 px-3 font-mono text-[0.64rem] uppercase tracking-[0.12em] transition-colors ${mobileStep === 0 ? 'bg-[#b87333] text-[#100f0d]' : 'text-[#c2d0d8]/70'}`}
+          >
+            01 · medidas
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileStep(1)}
+            aria-current={mobileStep === 1 ? 'step' : undefined}
+            className={`min-h-11 border-l border-white/15 px-3 font-mono text-[0.64rem] uppercase tracking-[0.12em] transition-colors ${mobileStep === 1 ? 'bg-[#b87333] text-[#100f0d]' : 'text-[#c2d0d8]/70'}`}
+          >
+            02 · solicitar
+          </button>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-5 lg:mt-7 lg:grid-cols-12 lg:gap-8">
           {/* Controls */}
           <motion.div
             initial={reduce ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.7, ease }}
-            className="lg:col-span-7"
+            className={`${mobileStep === 0 ? 'block' : 'hidden'} lg:col-span-7 lg:block`}
           >
-            <div className="glass-panel rounded-sm p-6 sm:p-8">
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className="glass-panel rounded-sm p-4 sm:p-5 lg:p-6">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:gap-4">
                 <div className="sm:col-span-2">
                   <Label htmlFor="prod" className="hud-label mb-2 block text-[#c2d0d8]/70">
                     Material
@@ -251,7 +271,7 @@ export function QuoteCalculator() {
                         key={f}
                         type="button"
                         onClick={() => setFinish(f)}
-                        className={`h-10 border px-4 font-mono text-[0.65rem] uppercase tracking-[0.12em] transition-colors ${
+                        className={`h-11 border px-3 font-mono text-[0.63rem] uppercase tracking-[0.1em] transition-colors sm:px-4 sm:text-[0.65rem] sm:tracking-[0.12em] ${
                           finish === f
                             ? 'border-[#b87333] bg-[#b87333] text-[#100f0d]'
                             : 'border-white/20 text-[#c2d0d8]/70 hover:border-[#b87333]/60'
@@ -265,7 +285,7 @@ export function QuoteCalculator() {
               </div>
 
               {/* Dimension visualization */}
-              <div className="mt-6 flex items-center gap-4 border-t border-white/10 pt-6">
+              <div className="mt-5 hidden items-center gap-4 border-t border-white/10 pt-5 sm:flex">
                 <div className="relative h-20 w-32 border border-dashed border-white/30">
                   <div className="absolute inset-2 bg-[#b87333]/10" />
                   <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 font-mono text-[0.6rem] text-[#c2d0d8]/60 tnum">
@@ -286,6 +306,15 @@ export function QuoteCalculator() {
                   )}
                 </div>
               </div>
+
+              <Button
+                type="button"
+                onClick={() => setMobileStep(1)}
+                disabled={!calc}
+                className="mt-4 h-11 w-full rounded-none bg-[#b87333] font-mono text-[0.68rem] uppercase tracking-[0.14em] text-[#100f0d] hover:bg-[#d18a45] disabled:opacity-40 lg:hidden"
+              >
+                Ver estimado y solicitar <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Button>
             </div>
           </motion.div>
 
@@ -295,9 +324,9 @@ export function QuoteCalculator() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.7, delay: 0.1, ease }}
-            className="lg:col-span-5"
+            className={`${mobileStep === 1 ? 'block' : 'hidden'} lg:col-span-5 lg:block`}
           >
-            <div className="relative flex h-full flex-col justify-between overflow-hidden rounded-sm border border-[#b87333]/30 bg-gradient-to-br from-[#1a1815] to-[#100f0d] p-6 sm:p-8">
+            <div className="relative flex h-full flex-col justify-between overflow-hidden rounded-sm border border-[#b87333]/30 bg-gradient-to-br from-[#1a1815] to-[#100f0d] p-4 sm:p-5 lg:p-6">
               {selected && (
                 <div className="absolute right-0 top-0 h-32 w-32 opacity-20">
                   <Image src={selected.image} alt="" fill className="object-cover" sizes="128px" />
@@ -314,12 +343,12 @@ export function QuoteCalculator() {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.4, ease }}
-                      className="font-display text-5xl font-light tracking-tight tnum text-[#e6e8ea] sm:text-6xl"
+                      className="font-display text-4xl font-light tracking-tight tnum text-[#e6e8ea] sm:text-5xl lg:text-6xl"
                     >
                       {formatMXN(calc.estimatedPrice)}
                     </motion.div>
                   ) : (
-                    <div className="font-display text-5xl font-light tracking-tight text-[#c2d0d8]/30 sm:text-6xl">
+                    <div className="font-display text-4xl font-light tracking-tight text-[#c2d0d8]/30 sm:text-5xl lg:text-6xl">
                       —
                     </div>
                   )}
@@ -331,7 +360,7 @@ export function QuoteCalculator() {
                 </div>
               </div>
 
-              <div className="relative mt-8">
+              <div className="relative mt-4 lg:mt-6">
                 {done ? (
                   <div className="flex flex-col items-start gap-3 border border-[#b87333]/40 bg-[#b87333]/10 p-5">
                     <div className="flex items-center gap-2">
@@ -397,6 +426,14 @@ export function QuoteCalculator() {
                   </form>
                 )}
               </div>
+
+              <button
+                type="button"
+                onClick={() => setMobileStep(0)}
+                className="mt-2 min-h-11 self-start font-mono text-[0.63rem] uppercase tracking-[0.12em] text-[#c2d0d8]/60 transition-colors hover:text-[#d18a45] lg:hidden"
+              >
+                ← cambiar medidas
+              </button>
             </div>
           </motion.div>
         </div>

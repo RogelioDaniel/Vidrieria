@@ -39,11 +39,33 @@ const DETAILS = [
   },
 ]
 
+type ContactView = 'details' | 'message'
+
 export function Contact() {
   const reduce = useReducedMotion()
+  const [mobileView, setMobileView] = React.useState<ContactView>('details')
   const [submitting, setSubmitting] = React.useState(false)
   const [done, setDone] = React.useState(false)
   const [form, setForm] = React.useState({ name: '', email: '', subject: '', message: '' })
+  const detailsTabRef = React.useRef<HTMLButtonElement>(null)
+  const messageTabRef = React.useRef<HTMLButtonElement>(null)
+
+  function selectMobileView(view: ContactView, focus = false) {
+    setMobileView(view)
+    if (!focus) return
+    window.requestAnimationFrame(() => {
+      const target = view === 'details' ? detailsTabRef.current : messageTabRef.current
+      target?.focus()
+    })
+  }
+
+  function handleTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+    event.preventDefault()
+    const next: ContactView =
+      event.key === 'ArrowLeft' || event.key === 'Home' ? 'details' : 'message'
+    selectMobileView(next, true)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -73,45 +95,94 @@ export function Contact() {
   }
 
   return (
-    <section id="contacto" className="relative overflow-hidden border-t border-border bg-background py-24 sm:py-32">
+    <section
+      id="contacto"
+      className="viewport-section relative overflow-hidden border-t border-border bg-background py-10 sm:py-14 lg:py-12"
+    >
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-12">
+        <div
+          role="tablist"
+          aria-label="Opciones de contacto"
+          className="mb-5 grid grid-cols-2 border border-border bg-card lg:hidden"
+        >
+          <button
+            ref={detailsTabRef}
+            id="contact-details-tab"
+            type="button"
+            role="tab"
+            aria-selected={mobileView === 'details'}
+            aria-controls="contact-details-panel"
+            tabIndex={mobileView === 'details' ? 0 : -1}
+            onClick={() => selectMobileView('details')}
+            onKeyDown={handleTabKeyDown}
+            className={`h-11 border-r border-border px-3 font-mono text-[0.65rem] uppercase tracking-[0.12em] transition-colors ${
+              mobileView === 'details'
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Datos del taller
+          </button>
+          <button
+            ref={messageTabRef}
+            id="contact-message-tab"
+            type="button"
+            role="tab"
+            aria-selected={mobileView === 'message'}
+            aria-controls="contact-message-panel"
+            tabIndex={mobileView === 'message' ? 0 : -1}
+            onClick={() => selectMobileView('message')}
+            onKeyDown={handleTabKeyDown}
+            className={`h-11 px-3 font-mono text-[0.65rem] uppercase tracking-[0.12em] transition-colors ${
+              mobileView === 'message'
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Escríbenos
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-12">
           {/* Left: details */}
           <motion.div
+            id="contact-details-panel"
+            role="tabpanel"
+            aria-labelledby="contact-details-tab"
             initial={reduce ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.7, ease }}
-            className="lg:col-span-5"
+            className={`${mobileView === 'details' ? 'block' : 'hidden'} lg:col-span-5 lg:block`}
           >
             <GlassReveal>
-              <div className="mb-4 flex items-center gap-3">
+              <div className="mb-3 flex items-center gap-3">
                 <span className="hud-label text-accent">07 · contacto</span>
                 <span className="h-px w-12 bg-accent/40" />
               </div>
-              <h2 className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl">
+              <h2 className="font-display text-3xl font-light leading-[1.05] tracking-[-0.02em] sm:text-4xl lg:text-5xl">
                 Visita el taller
                 <br />
                 <span className="italic text-accent">o escríbenos.</span>
               </h2>
             </GlassReveal>
-            <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
               Pasa por la oficina a ver muestras físicas, o cuéntanos tu
               proyecto por correo. Atendemos toda la zona metropolitana de la
               Ciudad de México.
             </p>
 
-            <div className="mt-8 grid grid-cols-1 gap-px border border-border bg-border sm:grid-cols-2">
+            <div className="mt-5 grid grid-cols-2 gap-px border border-border bg-border lg:mt-6">
               {DETAILS.map((d) => (
-                <div key={d.label} className="bg-card p-5">
+                <div key={d.label} className="min-w-0 bg-card p-3 sm:p-4 lg:p-5">
                   <div className="flex items-center gap-2">
                     <d.icon className="h-4 w-4 text-accent" />
                     <span className="hud-label text-muted-foreground">{d.label}</span>
                   </div>
-                  <div className="mt-2 font-display text-lg font-medium tracking-tight">
+                  <div className="mt-2 break-words font-display text-base font-medium tracking-tight lg:text-lg">
                     {d.value}
                   </div>
-                  <div className="mt-0.5 font-mono text-[0.65rem] text-muted-foreground">
+                  <div className="mt-0.5 break-words font-mono text-[0.6rem] text-muted-foreground lg:text-[0.65rem]">
                     {d.sub}
                   </div>
                 </div>
@@ -119,7 +190,7 @@ export function Contact() {
             </div>
 
             {/* faux map / coverage strip */}
-            <div className="mt-6 relative h-40 overflow-hidden border border-border bg-foreground text-background">
+            <div className="relative mt-4 h-28 overflow-hidden border border-border bg-foreground text-background sm:h-36 lg:mt-6 lg:h-40">
               <div
                 className="absolute inset-0 opacity-40"
                 style={{
@@ -154,13 +225,16 @@ export function Contact() {
 
           {/* Right: form */}
           <motion.div
+            id="contact-message-panel"
+            role="tabpanel"
+            aria-labelledby="contact-message-tab"
             initial={reduce ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-80px' }}
             transition={{ duration: 0.7, delay: 0.1, ease }}
-            className="lg:col-span-7"
+            className={`${mobileView === 'message' ? 'block' : 'hidden'} lg:col-span-7 lg:block`}
           >
-            <div className="glass-card rounded-sm p-6 sm:p-8">
+            <div className="glass-card rounded-sm p-4 sm:p-6 lg:p-8">
               {done ? (
                 <div className="flex flex-col items-start gap-4 py-10">
                   <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-background">
@@ -186,8 +260,8 @@ export function Contact() {
                   </Button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  <div className="flex items-center gap-2 border-b border-border pb-4">
+                <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 lg:space-y-5">
+                  <div className="flex items-center gap-2 border-b border-border pb-3 sm:pb-4">
                     <Mail className="h-4 w-4 text-accent" />
                     <span className="hud-label text-muted-foreground">envía un mensaje</span>
                   </div>
@@ -238,7 +312,7 @@ export function Contact() {
                       id="cm"
                       value={form.message}
                       onChange={(e) => setForm({ ...form, message: e.target.value })}
-                      className="min-h-[140px] rounded-none border-border bg-background focus:border-accent"
+                      className="min-h-[96px] rounded-none border-border bg-background focus:border-accent sm:min-h-[120px] lg:min-h-[140px]"
                       placeholder="Cuéntanos del proyecto: tipo de vidrio, medidas aproximadas, ubicación y tiempos."
                     />
                   </div>

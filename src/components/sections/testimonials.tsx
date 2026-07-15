@@ -40,7 +40,7 @@ export function Testimonials() {
 
   if (loading) {
     return (
-      <section id="clientes" className="flex h-64 items-center justify-center bg-background">
+      <section id="clientes" className="viewport-section flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-accent" />
       </section>
     )
@@ -50,7 +50,7 @@ export function Testimonials() {
     return (
       <section
         id="clientes"
-        className="relative flex min-h-[42svh] items-center border-y border-border bg-background py-16"
+        className="viewport-section relative flex items-center border-y border-border bg-background"
       >
         <div className="mx-auto max-w-2xl px-5 text-center sm:px-8">
           <div className="hud-label text-accent">05 · clientes</div>
@@ -68,7 +68,7 @@ export function Testimonials() {
   }
 
   return (
-    <section id="clientes" className="relative overflow-hidden border-y border-border bg-background py-24 sm:py-32">
+    <section id="clientes" className="viewport-section relative overflow-hidden border-y border-border bg-background">
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.06]"
         style={{

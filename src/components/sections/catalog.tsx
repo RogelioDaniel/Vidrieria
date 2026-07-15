@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'framer-motion'
-import { ArrowUpRight, Loader2, Plus } from 'lucide-react'
+import { ArrowUpRight, ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -56,6 +56,7 @@ function formatMXN(n: number) {
 
 export function Catalog() {
   const reduce = useReducedMotion()
+  const carouselRef = React.useRef<HTMLDivElement>(null)
   const [products, setProducts] = React.useState<Product[]>([])
   const [loading, setLoading] = React.useState(true)
   const [active, setActive] = React.useState('all')
@@ -63,9 +64,13 @@ export function Catalog() {
   React.useEffect(() => {
     let cancel = false
     setLoading(true)
+    carouselRef.current?.scrollTo({ left: 0, behavior: 'auto' })
     const q = active === 'all' ? '' : `?category=${active}`
     fetch(`/api/products${q}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('No se pudo cargar el catálogo')
+        return r.json()
+      })
       .then((d) => {
         if (!cancel) {
           setProducts(d.products ?? [])
@@ -80,11 +85,20 @@ export function Catalog() {
     }
   }, [active])
 
+  const moveCarousel = (direction: -1 | 1) => {
+    const node = carouselRef.current
+    if (!node) return
+    node.scrollBy({
+      left: direction * Math.max(280, node.clientWidth * 0.82),
+      behavior: reduce ? 'auto' : 'smooth',
+    })
+  }
+
   return (
-    <section id="catalogo" className="relative bg-background py-24 sm:py-32">
+    <section id="catalogo" className="viewport-section relative bg-background">
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
         {/* Section header */}
-        <div className="flex flex-col gap-6 border-b border-border pb-10 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-end md:justify-between lg:pb-6">
           <div className="max-w-2xl">
             <GlassReveal>
               <div className="mb-4 flex items-center gap-3">
@@ -97,7 +111,7 @@ export function Catalog() {
                 <span className="italic text-accent">del taller.</span>
               </h2>
             </GlassReveal>
-            <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
               Cada material se fabrica o se corta a la medida exacta de tu
               proyecto. Precios por metro cuadrado, instalación incluida en la
               CDMX.
@@ -110,12 +124,12 @@ export function Catalog() {
         </div>
 
         {/* Category filter */}
-        <div className="mt-8 flex flex-wrap gap-2">
+        <div className="carousel-strip mt-4 flex gap-2 overflow-x-auto pb-1 lg:mt-5">
           {CATEGORIES.map((c) => (
             <button
               key={c.id}
               onClick={() => setActive(c.id)}
-              className={`h-9 border px-4 font-mono text-[0.7rem] uppercase tracking-[0.14em] transition-colors ${
+              className={`h-11 shrink-0 border px-4 font-mono text-[0.7rem] uppercase tracking-[0.14em] transition-colors sm:h-9 ${
                 active === c.id
                   ? 'border-foreground bg-foreground text-background'
                   : 'border-border bg-transparent text-foreground/70 hover:border-foreground/60 hover:text-foreground'
@@ -126,13 +140,19 @@ export function Catalog() {
           ))}
         </div>
 
-        {/* Grid */}
+        {/* One-row product rack: all pieces stay inside this viewport stop. */}
         {loading ? (
-          <div className="flex h-64 items-center justify-center">
+          <div className="flex h-[22rem] items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-accent" />
           </div>
         ) : (
-          <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="relative mt-4 lg:mt-5">
+            <div
+              ref={carouselRef}
+              role="region"
+              aria-label="Carrusel de materiales"
+              className="carousel-strip flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2"
+            >
             {products.map((p, i) => (
               <motion.article
                 key={p.id}
@@ -140,9 +160,9 @@ export function Catalog() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-60px' }}
                 transition={{ duration: 0.6, delay: (i % 3) * 0.08, ease }}
-                className="group relative flex flex-col border border-border bg-card transition-colors hover:border-foreground/40"
+                className="group relative flex min-w-0 shrink-0 basis-[88%] snap-start flex-col border border-border bg-card transition-colors hover:border-foreground/40 sm:basis-[48%] lg:basis-[31.8%]"
               >
-                <div className="relative aspect-[4/5] overflow-hidden bg-muted">
+                <div className="relative h-36 overflow-hidden bg-muted sm:h-40 lg:h-44">
                   <Image
                     src={p.image}
                     alt={p.name}
@@ -164,7 +184,7 @@ export function Catalog() {
                   </div>
                 </div>
 
-                <div className="flex flex-1 flex-col p-5">
+                <div className="flex flex-1 flex-col p-4">
                   <div className="flex items-start justify-between gap-3">
                     <h3 className="font-display text-xl font-medium leading-tight tracking-tight">
                       {p.name}
@@ -173,12 +193,12 @@ export function Catalog() {
                       {p.thickness}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
                     {p.summary}
                   </p>
 
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {p.features.split('|').slice(0, 3).map((f) => (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {p.features.split('|').slice(0, 2).map((f) => (
                       <span
                         key={f}
                         className="border border-border/80 px-2 py-0.5 font-mono text-[0.6rem] uppercase tracking-[0.1em] text-muted-foreground"
@@ -188,7 +208,7 @@ export function Catalog() {
                     ))}
                   </div>
 
-                  <div className="mt-5 flex items-end justify-between border-t border-border pt-4">
+                  <div className="mt-auto flex items-end justify-between border-t border-border pt-3">
                     <div>
                       <div className="hud-label text-muted-foreground">desde</div>
                       <div className="font-display text-2xl font-medium tnum text-foreground">
@@ -204,7 +224,7 @@ export function Catalog() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-9 gap-1.5 rounded-none px-3 font-mono text-[0.65rem] uppercase tracking-[0.14em] text-foreground hover:bg-foreground hover:text-background"
+                          className="h-11 gap-1.5 rounded-none px-3 font-mono text-[0.65rem] uppercase tracking-[0.14em] text-foreground hover:bg-foreground hover:text-background sm:h-9"
                         >
                           <Plus className="h-3.5 w-3.5" />
                           Ficha
@@ -271,6 +291,33 @@ export function Catalog() {
                 </div>
               </motion.article>
             ))}
+            </div>
+
+            {products.length > 1 && (
+              <div className="mt-3 flex items-center justify-between">
+                <span className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-muted-foreground">
+                  desliza las muestras
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => moveCarousel(-1)}
+                    aria-label="Materiales anteriores"
+                    className="flex h-11 w-11 items-center justify-center border border-border transition-colors hover:border-accent hover:text-accent"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveCarousel(1)}
+                    aria-label="Materiales siguientes"
+                    className="flex h-11 w-11 items-center justify-center border border-border transition-colors hover:border-accent hover:text-accent"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
