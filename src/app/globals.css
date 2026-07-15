@@ -218,6 +218,14 @@
 }
 .float-mote { animation: float-mote 6s ease-in-out infinite; }
 
+/* Last-resort escape hatch if client JavaScript or WebGL initialization fails. */
+@keyframes prisma-intro-failsafe {
+  to { opacity: 0; visibility: hidden; pointer-events: none; }
+}
+.prisma-intro-overlay {
+  animation: prisma-intro-failsafe 1ms linear 8s forwards;
+}
+
 /* Custom scrollbar — premium detail */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }

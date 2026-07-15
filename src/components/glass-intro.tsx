@@ -6,12 +6,13 @@
  * A single frosted pane bearing the wordmark shatters from an impact point
  * (the "loading" beat), the shards hang in the copper light, then reverse and
  * *reconstruct* into the intact pane before the whole thing dissolves to reveal
- * the site. Built on one BufferGeometry of triangular shards driven by a custom
- * shader — the entire shatter is a single draw call (per ui-ux-pro-max's
- * threejs guideline: never one Mesh per shard).
+ * the actual hero beneath it. The landing page is revealed from the outside
+ * inward while the shards return, so it feels assembled from glass instead of
+ * appearing after a white flash. Built on one BufferGeometry of triangular
+ * shards driven by a custom shader — the entire shatter is one draw call.
  *
- * Plays once per browser session (sessionStorage). Respects prefers-reduced-
- * motion and silently no-ops if WebGL is unavailable — the page is always
+ * Each load gets a new fracture seed and impact point. Respects reduced motion,
+ * Save-Data, and silently no-ops if WebGL is unavailable — the page is always
  * revealed either way.
  */
 
@@ -27,15 +28,15 @@ const OBSIDIAN = '#100f0d'
 const RINGS = 8
 const SECTORS = 20
 
-// Timeline (seconds) — plays on every load, so it's paced to be legible
-// without overstaying its welcome (~4.6s total).
+// Timeline (seconds) — paced to make the material transformation legible
+// without overstaying its welcome (~4.7s total).
 const T = {
-  formIn: 0.55, // pane fades in intact
-  shatter: 1.7, // explode outward — the "loading" break
-  hold: 2.35, // shards suspended, progress fills
-  reconstruct: 3.75, // shards fly back, pane reforms
-  reveal: 4.2, // refraction flash + dissolve
-  end: 4.65, // remove from DOM
+  formIn: 0.5, // pane fades in intact
+  shatter: 1.65, // explode outward — the "loading" break
+  hold: 2.25, // shards suspended, progress fills
+  reconstruct: 3.8, // shards return while the landing page is revealed
+  settle: 4.3, // intact clear pane catches one restrained refraction
+  end: 4.7, // glass dissolves, leaving the real page in place
 }
 
 function easeInOutCubic(t: number) {
@@ -95,24 +96,28 @@ function buildShardGeometry(
   paneW: number,
   paneH: number,
   impact: THREE.Vector2,
+  seed: number,
 ) {
-  const rand = mulberry32(0xc0ffee)
+  const rand = mulberry32(seed)
   const maxR = Math.hypot(paneW / 2, paneH / 2) * 1.08
+  const angularOffset = rand() * Math.PI * 2
+  const radiusPower = 1.2 + rand() * 0.3
 
   // Shared node grid so the assembled pane is seamless (no gaps).
   // nodes[k][j] for ring k (0=impact center) and sector j.
   const nodes: THREE.Vector2[][] = []
   for (let k = 0; k <= RINGS; k++) {
     const row: THREE.Vector2[] = []
-    const radius = maxR * Math.pow(k / RINGS, 1.35)
+    const radius = maxR * Math.pow(k / RINGS, radiusPower)
     for (let j = 0; j < SECTORS; j++) {
       if (k === 0) {
         row.push(impact.clone())
         continue
       }
-      const jitterA = (rand() - 0.5) * ((Math.PI * 2) / SECTORS) * 0.55
-      const jitterR = 1 + (rand() - 0.5) * 0.28
-      const ang = (j / SECTORS) * Math.PI * 2 + jitterA
+      const jitterA =
+        (rand() - 0.5) * ((Math.PI * 2) / SECTORS) * (0.42 + rand() * 0.22)
+      const jitterR = 1 + (rand() - 0.5) * (0.2 + rand() * 0.16)
+      const ang = (j / SECTORS) * Math.PI * 2 + angularOffset + jitterA
       row.push(
         new THREE.Vector2(
           impact.x + Math.cos(ang) * radius * jitterR,
@@ -203,7 +208,7 @@ function buildShardGeometry(
   return geo
 }
 
-// Small deterministic PRNG so the fracture pattern is stable.
+// Small deterministic PRNG: one coherent pattern per run, a new seed per load.
 function mulberry32(seed: number) {
   let a = seed >>> 0
   return function () {
@@ -212,6 +217,16 @@ function mulberry32(seed: number) {
     let t = Math.imul(a ^ (a >>> 15), 1 | a)
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function randomSeed() {
+  try {
+    const value = new Uint32Array(1)
+    window.crypto.getRandomValues(value)
+    return value[0]
+  } catch {
+    return (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0
   }
 }
 
@@ -275,7 +290,8 @@ const FRAG = /* glsl */ `
   uniform vec3 uFrost;
   uniform vec3 uCopper;
   uniform float uOpacity;
-  uniform float uFlash;
+  uniform float uReveal;
+  uniform float uGlint;
 
   varying vec3 vBary;
   varying vec2 vUv;
@@ -290,19 +306,35 @@ const FRAG = /* glsl */ `
     float glow = exp(-vDist * 0.55);
     col = mix(col, uCopper, glow * 0.55);
 
-    // Etched wordmark
+    // Etched wordmark leaves as the real landing page takes its place.
     vec4 tex = texture2D(uTex, vUv);
-    col = mix(col, vec3(0.96, 0.97, 0.98), tex.a * 0.92);
+    col = mix(
+      col,
+      vec3(0.96, 0.97, 0.98),
+      tex.a * 0.92 * (1.0 - uReveal)
+    );
 
     // Facet edges catching light — stronger as shards separate
     float e = min(vBary.x, min(vBary.y, vBary.z));
     float edge = 1.0 - smoothstep(0.0, 0.045, e);
     col += edge * (0.35 + vShatter * 0.65) * vec3(1.0, 0.9, 0.74);
 
-    // Reveal flash
-    col += uFlash * vec3(1.0, 0.97, 0.92);
+    // As it reforms, the pane clears rather than flashing opaque white.
+    col = mix(col, col * 0.4 + vec3(0.05, 0.065, 0.075), uReveal * 0.72);
 
-    float alpha = (0.82 + edge * 0.18) * uOpacity;
+    // A narrow copper refraction confirms the pane is intact. It never floods
+    // the screen, so the hero remains readable throughout the handoff.
+    float glintLine = mix(-0.25, 1.35, uGlint);
+    float glint = 1.0 - smoothstep(
+      0.0,
+      0.035,
+      abs(vUv.x + vUv.y * 0.22 - glintLine)
+    );
+    col += glint * uReveal * vec3(0.42, 0.25, 0.11);
+
+    float glassAlpha = mix(0.82, 0.12, uReveal);
+    float edgeAlpha = mix(0.18, 0.38, uReveal);
+    float alpha = (glassAlpha + edge * edgeAlpha) * uOpacity;
     gl_FragColor = vec4(col, alpha);
   }
 `
@@ -327,6 +359,8 @@ export function GlassIntro() {
   const [progress, setProgress] = React.useState(0)
   const [phase, setPhase] = React.useState<'break' | 'rebuild'>('break')
   const mountRef = React.useRef<HTMLDivElement | null>(null)
+  const backdropRef = React.useRef<HTMLDivElement | null>(null)
+  const hudRef = React.useRef<HTMLDivElement | null>(null)
 
   // Run the overture once the overlay (and its mount point) is in the DOM.
   React.useEffect(() => {
@@ -335,20 +369,31 @@ export function GlassIntro() {
     const reduce = window.matchMedia(
       '(prefers-reduced-motion: reduce)',
     ).matches
+    const saveData = Boolean(
+      (
+        navigator as Navigator & {
+          connection?: { saveData?: boolean }
+        }
+      ).connection?.saveData,
+    )
 
+    const previousHtmlOverflow = document.documentElement.style.overflow
+    const previousBodyOverflow = document.body.style.overflow
+    document.documentElement.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
 
     let cleanup = () => {}
-    if (reduce || !hasWebGL()) {
+    if (reduce || saveData || !hasWebGL()) {
       // Accessible fallback: brief branded fade, then reveal.
-      const to = window.setTimeout(() => finish(), 900)
+      const to = window.setTimeout(() => finish(), 500)
       cleanup = () => window.clearTimeout(to)
     } else {
       cleanup = runThree()
     }
 
     function finish() {
-      document.body.style.overflow = ''
+      document.documentElement.style.overflow = previousHtmlOverflow
+      document.body.style.overflow = previousBodyOverflow
       setActive(false)
     }
 
@@ -370,7 +415,7 @@ export function GlassIntro() {
         antialias: true,
         powerPreference: 'high-performance',
       })
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
       renderer.setSize(window.innerWidth, window.innerHeight)
       renderer.setClearColor(0x000000, 0)
       mount.appendChild(renderer.domElement)
@@ -380,9 +425,19 @@ export function GlassIntro() {
       const vW = vH * aspect
       const paneW = vW * 1.55
       const paneH = vH * 1.55
-      const impact = new THREE.Vector2(-paneW * 0.06, paneH * 0.05)
+      const seed = randomSeed()
+      const rand = mulberry32(seed ^ 0x9e3779b9)
+      const impact = new THREE.Vector2(
+        paneW * (-0.14 + rand() * 0.28),
+        paneH * (-0.11 + rand() * 0.22),
+      )
 
-      const geometry = buildShardGeometry(paneW, paneH, impact)
+      const geometry = buildShardGeometry(
+        paneW,
+        paneH,
+        impact,
+        seed ^ 0x85ebca6b,
+      )
       const wordmark = makeWordmarkTexture(paneW / paneH)
 
       const uniforms = {
@@ -392,7 +447,8 @@ export function GlassIntro() {
         uFrost: { value: FROST },
         uCopper: { value: COPPER },
         uOpacity: { value: 0 },
-        uFlash: { value: 0 },
+        uReveal: { value: 0 },
+        uGlint: { value: 0 },
       }
 
       const material = new THREE.ShaderMaterial({
@@ -415,11 +471,30 @@ export function GlassIntro() {
       }
       window.addEventListener('resize', onResize)
 
+      const revealLanding = (amount: number) => {
+        const backdrop = backdropRef.current
+        if (!backdrop) return
+
+        // The fracture reconstructs from the outer rings inward. Shrinking the
+        // opaque circle in the same direction reveals the real hero exactly
+        // where those returning shards have already settled.
+        const currentVW = vH * camera.aspect
+        const xPct = 50 + (impact.x / currentVW) * 100
+        const yPct = 50 - (impact.y / vH) * 100
+        const impactX = (xPct / 100) * window.innerWidth
+        const impactY = (yPct / 100) * window.innerHeight
+        const farX = Math.max(impactX, window.innerWidth - impactX)
+        const farY = Math.max(impactY, window.innerHeight - impactY)
+        const radius = Math.hypot(farX, farY) * 1.04 * (1 - amount)
+        backdrop.style.clipPath = `circle(${Math.max(0, radius)}px at ${xPct}% ${yPct}%)`
+      }
+
       // Map elapsed time → uniforms + HUD, then render one frame.
       const renderFrame = (t: number) => {
         let shatter = 0
         let opacity = 1
-        let flash = 0
+        let reveal = 0
+        let glint = 0
 
         if (t < T.formIn) {
           // pane fades in intact
@@ -435,25 +510,35 @@ export function GlassIntro() {
         } else if (t < T.hold) {
           shatter = 1
         } else if (t < T.reconstruct) {
-          // reverse — reconstruct the pane
+          // Reverse the fracture while the actual hero is assembled beneath it.
           const k = (t - T.hold) / (T.reconstruct - T.hold)
           shatter = 1 - easeInOutCubic(k)
-        } else if (t < T.reveal) {
-          // crisp pane + refraction flash building
+          reveal = easeInOutCubic(Math.max(0, (k - 0.06) / 0.94))
+        } else if (t < T.settle) {
+          // The hero is now visible through an intact, nearly-clear pane.
           shatter = 0
-          const k = (t - T.reconstruct) / (T.reveal - T.reconstruct)
-          flash = Math.sin(k * Math.PI) * 0.6
+          reveal = 1
+          glint = (t - T.reconstruct) / (T.settle - T.reconstruct)
         } else {
-          // dissolve to reveal the site
-          const k = (t - T.reveal) / (T.end - T.reveal)
+          // Dissolve only the final glass skin; the real page is already there.
+          const k = (t - T.settle) / (T.end - T.settle)
           shatter = 0
+          reveal = 1
+          glint = 1
           opacity = 1 - easeInOutCubic(Math.min(k, 1))
-          flash = (1 - k) * 0.25
         }
 
         uniforms.uShatter.value = shatter
         uniforms.uOpacity.value = opacity
-        uniforms.uFlash.value = flash
+        uniforms.uReveal.value = reveal
+        uniforms.uGlint.value = glint
+        revealLanding(reveal)
+
+        if (hudRef.current) {
+          hudRef.current.style.opacity = String(
+            1 - Math.min(1, reveal * 1.35),
+          )
+        }
 
         // HUD progress: fills through break + hold, then "rebuild"
         if (t < T.hold) {
@@ -479,6 +564,8 @@ export function GlassIntro() {
         ) => {
           uniforms.uShatter.value = s
           uniforms.uOpacity.value = 1
+          uniforms.uReveal.value = 0
+          uniforms.uGlint.value = 0
           renderer.render(scene, camera)
           const gl = renderer.getContext()
           const w = gl.drawingBufferWidth
@@ -505,7 +592,8 @@ export function GlassIntro() {
       let raf = 0
       let watchdog = 0
       let done = false
-      let onVis: (() => void) | null = null
+      let pausedAt = 0
+      let started = false
 
       const tick = () => {
         const t = (performance.now() - start) / 1000
@@ -519,6 +607,7 @@ export function GlassIntro() {
       }
 
       const beginTimeline = () => {
+        started = true
         start = performance.now()
         raf = requestAnimationFrame(tick)
         // Wall-clock safety net: the overlay can never get stuck even if rAF
@@ -526,25 +615,28 @@ export function GlassIntro() {
         watchdog = window.setTimeout(() => finish(), (T.end + 3) * 1000)
       }
 
-      // rAF is paused while the tab is hidden — start the overture only once
-      // the page is actually visible so the user never misses it.
-      if (document.hidden) {
-        onVis = () => {
-          if (!document.hidden) {
-            document.removeEventListener('visibilitychange', onVis!)
-            onVis = null
-            beginTimeline()
+      // Pause rendering in a hidden tab and preserve the timeline position.
+      const onVisibilityChange = () => {
+        if (document.hidden) {
+          if (started && !pausedAt) {
+            pausedAt = performance.now()
+            cancelAnimationFrame(raf)
           }
+        } else if (!started) {
+          beginTimeline()
+        } else if (pausedAt) {
+          start += performance.now() - pausedAt
+          pausedAt = 0
+          raf = requestAnimationFrame(tick)
         }
-        document.addEventListener('visibilitychange', onVis)
-      } else {
-        beginTimeline()
       }
+      document.addEventListener('visibilitychange', onVisibilityChange)
+      if (!document.hidden) beginTimeline()
 
       return () => {
         cancelAnimationFrame(raf)
         window.clearTimeout(watchdog)
-        if (onVis) document.removeEventListener('visibilitychange', onVis)
+        document.removeEventListener('visibilitychange', onVisibilityChange)
         window.removeEventListener('resize', onResize)
         if (process.env.NODE_ENV !== 'production') {
           delete (window as unknown as Record<string, unknown>).__prismaIntro
@@ -560,7 +652,8 @@ export function GlassIntro() {
     }
 
     return () => {
-      document.body.style.overflow = ''
+      document.documentElement.style.overflow = previousHtmlOverflow
+      document.body.style.overflow = previousBodyOverflow
       cleanup()
     }
   }, [active])
@@ -570,26 +663,30 @@ export function GlassIntro() {
   return (
     <div
       aria-hidden="true"
-      className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden"
-      style={{ background: OBSIDIAN }}
+      className="prisma-intro-overlay fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden"
     >
-      {/* Lock scroll from the very first paint (server-rendered), so no
-          scrollbar flashes during the intro. Released when this unmounts. */}
-      <style>{`html,body{overflow:hidden!important}`}</style>
-
-      {/* copper ambient glow, echoing the hero */}
       <div
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[120vmax] w-[120vmax] -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{
-          background:
-            'radial-gradient(circle at center, rgba(184,115,51,0.28) 0%, rgba(184,115,51,0.08) 32%, transparent 62%)',
-        }}
-      />
+        ref={backdropRef}
+        className="absolute inset-0 overflow-hidden"
+        style={{ background: OBSIDIAN, willChange: 'clip-path' }}
+      >
+        {/* Copper furnace light stays inside the receding opaque field. */}
+        <div
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[120vmax] w-[120vmax] -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{
+            background:
+              'radial-gradient(circle at center, rgba(184,115,51,0.28) 0%, rgba(184,115,51,0.08) 32%, transparent 62%)',
+          }}
+        />
+      </div>
       {/* three.js canvas mounts here */}
       <div ref={mountRef} className="absolute inset-0" />
 
       {/* HUD readout — real loading feedback */}
-      <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2">
+      <div
+        ref={hudRef}
+        className="pointer-events-none absolute bottom-10 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2"
+      >
         <div className="font-mono text-[0.65rem] uppercase tracking-[0.35em] text-[#c2d0d8]/70">
           {phase === 'break' ? 'Fundiendo cristal' : 'Reconstruyendo'}
         </div>
