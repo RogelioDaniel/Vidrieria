@@ -573,6 +573,10 @@ export function GlassIntro() {
       className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden"
       style={{ background: OBSIDIAN }}
     >
+      {/* Lock scroll from the very first paint (server-rendered), so no
+          scrollbar flashes during the intro. Released when this unmounts. */}
+      <style>{`html,body{overflow:hidden!important}`}</style>
+
       {/* copper ambient glow, echoing the hero */}
       <div
         className="pointer-events-none absolute left-1/2 top-1/2 h-[120vmax] w-[120vmax] -translate-x-1/2 -translate-y-1/2 rounded-full"
