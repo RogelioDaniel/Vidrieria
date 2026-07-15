@@ -705,3 +705,216 @@ export function GlassIntro() {
     </div>
   )
 }
+
+const NAV_T = {
+  form: 0.08,
+  shatter: 0.38,
+  reconstruct: 0.76,
+  end: 1.04,
+}
+
+/**
+ * Short, interaction-driven version of the loading fracture. It reuses the
+ * same shard geometry and shader, but has no HUD and never locks page scroll.
+ * The destination continues navigating underneath while the current pane
+ * breaks, reforms over the new section, and clears.
+ */
+export function GlassNavigationTransition({
+  onComplete,
+}: {
+  onComplete: () => void
+}) {
+  const mountRef = React.useRef<HTMLDivElement | null>(null)
+  const backdropRef = React.useRef<HTMLDivElement | null>(null)
+
+  React.useEffect(() => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const saveData = Boolean(
+      (
+        navigator as Navigator & {
+          connection?: { saveData?: boolean }
+        }
+      ).connection?.saveData,
+    )
+    if (reduce || saveData || !hasWebGL()) {
+      onComplete()
+      return
+    }
+
+    const mount = mountRef.current
+    if (!mount) {
+      onComplete()
+      return
+    }
+
+    let finished = false
+    const finish = () => {
+      if (finished) return
+      finished = true
+      onComplete()
+    }
+
+    const scene = new THREE.Scene()
+    const aspect = window.innerWidth / window.innerHeight
+    const camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 100)
+    camera.position.z = 6
+
+    const renderer = new THREE.WebGLRenderer({
+      alpha: true,
+      antialias: false,
+      powerPreference: 'high-performance',
+    })
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25))
+    renderer.setSize(window.innerWidth, window.innerHeight)
+    renderer.setClearColor(0x000000, 0)
+    mount.appendChild(renderer.domElement)
+
+    const vH = 2 * camera.position.z * Math.tan((50 * Math.PI) / 360)
+    const vW = vH * aspect
+    const paneW = vW * 1.55
+    const paneH = vH * 1.55
+    const seed = randomSeed()
+    const rand = mulberry32(seed ^ 0x9e3779b9)
+    const impact = new THREE.Vector2(
+      paneW * (-0.14 + rand() * 0.28),
+      paneH * (-0.11 + rand() * 0.22),
+    )
+    const geometry = buildShardGeometry(
+      paneW,
+      paneH,
+      impact,
+      seed ^ 0x85ebca6b,
+    )
+    const emptyTexture = new THREE.DataTexture(
+      new Uint8Array([0, 0, 0, 0]),
+      1,
+      1,
+      THREE.RGBAFormat,
+    )
+    emptyTexture.needsUpdate = true
+
+    const uniforms = {
+      uShatter: { value: 0 },
+      uImpact: { value: impact },
+      uTex: { value: emptyTexture },
+      uFrost: { value: FROST },
+      uCopper: { value: COPPER },
+      uOpacity: { value: 0 },
+      uReveal: { value: 0 },
+      uGlint: { value: 0 },
+    }
+    const material = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader: VERT,
+      fragmentShader: FRAG,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    })
+    scene.add(new THREE.Mesh(geometry, material))
+
+    const setBackdrop = (reveal: number, opacity: number) => {
+      const backdrop = backdropRef.current
+      if (!backdrop) return
+      const currentVW = vH * camera.aspect
+      const xPct = 50 + (impact.x / currentVW) * 100
+      const yPct = 50 - (impact.y / vH) * 100
+      const impactX = (xPct / 100) * window.innerWidth
+      const impactY = (yPct / 100) * window.innerHeight
+      const farX = Math.max(impactX, window.innerWidth - impactX)
+      const farY = Math.max(impactY, window.innerHeight - impactY)
+      const radius = Math.hypot(farX, farY) * 1.04 * (1 - reveal)
+      backdrop.style.opacity = String(opacity)
+      backdrop.style.clipPath = `circle(${Math.max(0, radius)}px at ${xPct}% ${yPct}%)`
+    }
+
+    const onResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight
+      camera.updateProjectionMatrix()
+      renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+    window.addEventListener('resize', onResize)
+
+    let start = performance.now()
+    let raf = 0
+    let watchdog = 0
+    const tick = () => {
+      const t = (performance.now() - start) / 1000
+      let shatter = 0
+      let opacity = 1
+      let reveal = 0
+      let backdropOpacity = 0
+
+      if (t < NAV_T.form) {
+        opacity = t / NAV_T.form
+      } else if (t < NAV_T.shatter) {
+        const k = (t - NAV_T.form) / (NAV_T.shatter - NAV_T.form)
+        shatter = easeInOutCubic(k)
+        backdropOpacity = easeInOutCubic(k)
+      } else if (t < NAV_T.reconstruct) {
+        const k = (t - NAV_T.shatter) /
+          (NAV_T.reconstruct - NAV_T.shatter)
+        shatter = 1 - easeInOutCubic(k)
+        reveal = easeInOutCubic(k)
+        backdropOpacity = 1
+      } else {
+        const k = Math.min(
+          1,
+          (t - NAV_T.reconstruct) / (NAV_T.end - NAV_T.reconstruct),
+        )
+        reveal = 1
+        opacity = 1 - easeInOutCubic(k)
+        backdropOpacity = 1 - easeInOutCubic(k)
+        uniforms.uGlint.value = k
+      }
+
+      uniforms.uShatter.value = shatter
+      uniforms.uOpacity.value = opacity
+      uniforms.uReveal.value = reveal
+      setBackdrop(reveal, backdropOpacity)
+      renderer.render(scene, camera)
+
+      if (t >= NAV_T.end) {
+        finish()
+        return
+      }
+      raf = requestAnimationFrame(tick)
+    }
+
+    renderer.compile(scene, camera)
+    raf = requestAnimationFrame(tick)
+    watchdog = window.setTimeout(finish, 1800)
+
+    return () => {
+      cancelAnimationFrame(raf)
+      window.clearTimeout(watchdog)
+      window.removeEventListener('resize', onResize)
+      geometry.dispose()
+      material.dispose()
+      emptyTexture.dispose()
+      renderer.dispose()
+      if (renderer.domElement.parentNode === mount) {
+        mount.removeChild(renderer.domElement)
+      }
+    }
+  }, [onComplete])
+
+  return (
+    <div
+      aria-hidden="true"
+      data-prisma-navigation-transition="webgl"
+      className="pointer-events-none fixed inset-0 z-[90] overflow-hidden"
+    >
+      <div
+        ref={backdropRef}
+        className="absolute inset-0 opacity-0"
+        style={{
+          background:
+            'radial-gradient(circle at center, rgba(184,115,51,0.22), rgba(16,15,13,0.98) 58%)',
+          willChange: 'clip-path, opacity',
+        }}
+      />
+      <div ref={mountRef} className="absolute inset-0" />
+    </div>
+  )
+}
