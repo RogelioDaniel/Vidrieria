@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { GlassReveal } from '@/components/glass-reveal'
 
 type Product = {
   id: string
@@ -150,15 +151,17 @@ export function QuoteCalculator() {
       <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
         <div className="flex flex-col gap-6 border-b border-white/10 pb-10 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
-            <div className="mb-4 flex items-center gap-3">
-              <span className="hud-label text-[#d18a45]">02 · cotizador</span>
-              <span className="h-px w-12 bg-[#b87333]/50" />
-            </div>
-            <h2 className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl">
-              Precio al instante,
-              <br />
-              <span className="italic text-[#d18a45]">sin esperas.</span>
-            </h2>
+            <GlassReveal>
+              <div className="mb-4 flex items-center gap-3">
+                <span className="hud-label text-[#d18a45]">02 · cotizador</span>
+                <span className="h-px w-12 bg-[#b87333]/50" />
+              </div>
+              <h2 className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl">
+                Precio al instante,
+                <br />
+                <span className="italic text-[#d18a45]">sin esperas.</span>
+              </h2>
+            </GlassReveal>
             <p className="mt-4 max-w-md text-sm leading-relaxed text-[#c2d0d8]/70 sm:text-base">
               Elige el material, mide y obtén un estimado en tiempo real. Cuando
               lo confirmes, un asesor del taller revisa y programa la medición

@@ -1,7 +1,13 @@
 'use client'
 
 import * as React from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import {
+  motion,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+  type MotionValue,
+} from 'framer-motion'
 import Image from 'next/image'
 import { ArrowDown, ArrowUpRight, Plus } from 'lucide-react'
 import Link from 'next/link'
@@ -9,8 +15,111 @@ import { LivePresence } from '@/components/live-presence'
 
 const easeInOutCubic = [0.65, 0, 0.35, 1] as const
 
+// Hero panel shatters into this grid as the section scrolls out of view.
+const SHARD_COLS = 5
+const SHARD_ROWS = 6
+
+// Tiny deterministic PRNG (no Math.random — keeps SSR/client output identical).
+function seededRand(seed: number) {
+  let s = seed % 233280
+  return () => {
+    s = (s * 9301 + 49297) % 233280
+    return s / 233280
+  }
+}
+
+function HeroShard({
+  row,
+  col,
+  progress,
+  reduce,
+}: {
+  row: number
+  col: number
+  progress: MotionValue<number>
+  reduce: boolean | null | undefined
+}) {
+  const rand = seededRand(row * SHARD_COLS + col + 11)
+  const jitterX = (rand() - 0.5) * 2
+  const jitterY = rand()
+  const jitterRotate = rand() - 0.5
+
+  const centerX = (col + 0.5) / SHARD_COLS - 0.5 // -0.5 (left) .. 0.5 (right)
+  const fromTop = (row + 0.5) / SHARD_ROWS // 0 (top) .. 1 (bottom)
+
+  const targetX = reduce ? 0 : centerX * 220 + jitterX * 50
+  const targetY = reduce ? 0 : -(240 + (1 - fromTop) * 180 + jitterY * 140)
+  const targetRotate = reduce ? 0 : jitterRotate * 55
+
+  const x = useTransform(progress, [0, 1], [0, targetX])
+  const y = useTransform(progress, [0, 1], [0, targetY])
+  const rotate = useTransform(progress, [0, 1], [0, targetRotate])
+  const opacity = useTransform(
+    progress,
+    [0, 0.5, 1],
+    reduce ? [0.95, 0.95, 0.95] : [0.95, 0.8, 0],
+  )
+
+  return (
+    <motion.div
+      style={{
+        x,
+        y,
+        rotate,
+        opacity,
+        backgroundImage: 'url(/images/hero-glass-3x4.png)',
+        backgroundSize: `${SHARD_COLS * 100}% ${SHARD_ROWS * 100}%`,
+        backgroundPosition: `${(col / (SHARD_COLS - 1)) * 100}% ${(row / (SHARD_ROWS - 1)) * 100}%`,
+      }}
+      className="h-full w-full"
+    />
+  )
+}
+
+function HeroGlassShards({
+  progress,
+  reduce,
+}: {
+  progress: MotionValue<number>
+  reduce: boolean | null | undefined
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className="grid h-full w-full"
+      style={{
+        gridTemplateColumns: `repeat(${SHARD_COLS}, 1fr)`,
+        gridTemplateRows: `repeat(${SHARD_ROWS}, 1fr)`,
+      }}
+    >
+      {Array.from({ length: SHARD_ROWS }).map((_, row) =>
+        Array.from({ length: SHARD_COLS }).map((_, col) => (
+          <HeroShard
+            key={`${row}-${col}`}
+            row={row}
+            col={col}
+            progress={progress}
+            reduce={reduce}
+          />
+        )),
+      )}
+    </div>
+  )
+}
+
 export function Hero() {
   const reduce = useReducedMotion()
+  const panelRef = React.useRef<HTMLDivElement>(null)
+  const { scrollYProgress } = useScroll({
+    target: panelRef,
+    offset: ['start start', 'end start'],
+  })
+  const groupY = useTransform(scrollYProgress, [0, 1], reduce ? [0, 0] : [0, -120])
+  const groupOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.7, 1],
+    reduce ? [1, 1, 1] : [1, 1, 0],
+  )
 
   return (
     <section
@@ -164,7 +273,11 @@ export function Hero() {
           transition={{ delay: 0.4, duration: 1.1, ease: easeInOutCubic }}
           className="relative lg:col-span-5"
         >
-          <div className="relative mx-auto aspect-[3/4] w-full max-w-sm">
+          <motion.div
+            ref={panelRef}
+            style={{ y: groupY, opacity: groupOpacity }}
+            className="relative mx-auto aspect-[3/4] w-full max-w-sm"
+          >
             {/* copper glow behind */}
             <div
               className="copper-pulse absolute -inset-6 rounded-[2rem] opacity-70"
@@ -173,16 +286,18 @@ export function Hero() {
                   'radial-gradient(circle at 50% 45%, rgba(209,138,69,0.55) 0%, rgba(184,115,51,0.18) 40%, transparent 70%)',
               }}
             />
-            {/* glass image */}
-            <div className="glass-panel relative h-full w-full overflow-hidden rounded-sm">
+            {/* glass panel — shatters into shards as the section scrolls out */}
+            <div className="glass-panel relative h-full w-full rounded-sm">
+              {/* visually hidden: preloads the asset + carries real alt text for a11y */}
               <Image
-                src="/images/hero-glass.png"
+                src="/images/hero-glass-3x4.png"
                 alt="Panel de cristal iluminado desde su interior con luz cobriza"
                 fill
                 priority
                 sizes="(max-width: 1024px) 80vw, 30vw"
-                className="object-cover opacity-95"
+                className="pointer-events-none absolute inset-0 opacity-0"
               />
+              <HeroGlassShards progress={scrollYProgress} reduce={reduce} />
               {/* refraction sweep */}
               {!reduce && (
                 <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -226,7 +341,7 @@ export function Hero() {
               <div className="hud-label text-[#b87333]">espesor</div>
               <div className="font-mono text-[0.7rem] text-[#100f0d]">10 mm</div>
             </motion.div>
-          </div>
+          </motion.div>
         </motion.div>
       </div>
 

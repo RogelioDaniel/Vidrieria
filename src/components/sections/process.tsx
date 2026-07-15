@@ -3,6 +3,7 @@
 import * as React from 'react'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'framer-motion'
+import { GlassReveal } from '@/components/glass-reveal'
 
 const ease = [0.65, 0, 0.35, 1] as const
 
@@ -53,15 +54,17 @@ export function Process() {
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-12">
           {/* Left intro */}
           <div className="lg:col-span-5">
-            <div className="mb-4 flex items-center gap-3">
-              <span className="hud-label text-[#d18a45]">04 · proceso</span>
-              <span className="h-px w-12 bg-[#b87333]/50" />
-            </div>
-            <h2 className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl">
-              Del taller
-              <br />
-              <span className="italic text-[#d18a45]">a tu obra.</span>
-            </h2>
+            <GlassReveal>
+              <div className="mb-4 flex items-center gap-3">
+                <span className="hud-label text-[#d18a45]">04 · proceso</span>
+                <span className="h-px w-12 bg-[#b87333]/50" />
+              </div>
+              <h2 className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl">
+                Del taller
+                <br />
+                <span className="italic text-[#d18a45]">a tu obra.</span>
+              </h2>
+            </GlassReveal>
             <p className="mt-5 max-w-md text-sm leading-relaxed text-background/70 sm:text-base">
               Cuatro etapas controladas. Cada pieza pasa por medición,
               elaboración, horno y entrega. Trazabilidad completa y tiempos

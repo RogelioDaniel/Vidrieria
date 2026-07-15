@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
+import { GlassReveal } from '@/components/glass-reveal'
 
 const ease = [0.65, 0, 0.35, 1] as const
 
@@ -83,15 +84,17 @@ export function Contact() {
             transition={{ duration: 0.7, ease }}
             className="lg:col-span-5"
           >
-            <div className="mb-4 flex items-center gap-3">
-              <span className="hud-label text-accent">07 · contacto</span>
-              <span className="h-px w-12 bg-accent/40" />
-            </div>
-            <h2 className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl">
-              Visita el taller
-              <br />
-              <span className="italic text-accent">o escríbenos.</span>
-            </h2>
+            <GlassReveal>
+              <div className="mb-4 flex items-center gap-3">
+                <span className="hud-label text-accent">07 · contacto</span>
+                <span className="h-px w-12 bg-accent/40" />
+              </div>
+              <h2 className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl">
+                Visita el taller
+                <br />
+                <span className="italic text-accent">o escríbenos.</span>
+              </h2>
+            </GlassReveal>
             <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
               Pasa por la oficina a ver muestras físicas, o cuéntanos tu
               proyecto por correo. Atendemos toda la zona metropolitana de la

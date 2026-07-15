@@ -139,6 +139,10 @@
   }
   html {
     scroll-behavior: smooth;
+    /* Snap-scroll page modality: each gesture settles on a fixed section.
+       `proximity` (not mandatory) so sections taller than the viewport —
+       catálogo/agenda on mobile — still scroll freely inside. */
+    scroll-snap-type: y proximity;
   }
   body {
     @apply bg-background text-foreground;

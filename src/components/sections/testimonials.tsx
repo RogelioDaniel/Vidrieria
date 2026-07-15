@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Star, Quote, Loader2 } from 'lucide-react'
+import { GlassReveal } from '@/components/glass-reveal'
 
 type Testimonial = {
   id: string
@@ -48,7 +49,7 @@ export function Testimonials() {
   if (items.length === 0) return null
 
   return (
-    <section className="relative overflow-hidden border-y border-border bg-background py-24 sm:py-32">
+    <section id="clientes" className="relative overflow-hidden border-y border-border bg-background py-24 sm:py-32">
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.06]"
         style={{
@@ -59,16 +60,18 @@ export function Testimonials() {
       />
       <div className="relative mx-auto max-w-5xl px-5 sm:px-8">
         <div className="mb-12 flex flex-col items-center text-center">
-          <div className="mb-4 flex items-center gap-3">
-            <span className="h-px w-10 bg-accent/50" />
-            <span className="hud-label text-accent">05 · clientes</span>
-            <span className="h-px w-10 bg-accent/50" />
-          </div>
-          <h2 className="font-display text-3xl font-light leading-[1.1] tracking-[-0.02em] sm:text-4xl">
-            Lo que dicen quienes
-            <br />
-            <span className="italic text-accent">ya instalaron.</span>
-          </h2>
+          <GlassReveal className="flex flex-col items-center">
+            <div className="mb-4 flex items-center gap-3">
+              <span className="h-px w-10 bg-accent/50" />
+              <span className="hud-label text-accent">05 · clientes</span>
+              <span className="h-px w-10 bg-accent/50" />
+            </div>
+            <h2 className="font-display text-3xl font-light leading-[1.1] tracking-[-0.02em] sm:text-4xl">
+              Lo que dicen quienes
+              <br />
+              <span className="italic text-accent">ya instalaron.</span>
+            </h2>
+          </GlassReveal>
         </div>
 
         <div className="relative min-h-[280px]">

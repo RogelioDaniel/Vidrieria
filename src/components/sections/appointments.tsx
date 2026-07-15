@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Calendar } from '@/components/ui/calendar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { GlassReveal } from '@/components/glass-reveal'
 
 const ease = [0.65, 0, 0.35, 1] as const
 
@@ -83,15 +84,17 @@ export function Appointments() {
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
         <div className="flex flex-col gap-6 border-b border-border pb-10 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
-            <div className="mb-4 flex items-center gap-3">
-              <span className="hud-label text-accent">06 · agenda</span>
-              <span className="h-px w-12 bg-accent/40" />
-            </div>
-            <h2 className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl">
-              Agenda tu cita
-              <br />
-              <span className="italic text-accent">de medición.</span>
-            </h2>
+            <GlassReveal>
+              <div className="mb-4 flex items-center gap-3">
+                <span className="hud-label text-accent">06 · agenda</span>
+                <span className="h-px w-12 bg-accent/40" />
+              </div>
+              <h2 className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl">
+                Agenda tu cita
+                <br />
+                <span className="italic text-accent">de medición.</span>
+              </h2>
+            </GlassReveal>
             <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
               Elige servicio, fecha y horario. La medición en obra dentro de la
               CDMX es sin costo. Confirmamos por correo en menos de 2 horas

@@ -4,6 +4,7 @@ import * as React from 'react'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'framer-motion'
 import { ArrowUpRight, Loader2, MapPin } from 'lucide-react'
+import { GlassReveal } from '@/components/glass-reveal'
 
 type Project = {
   id: string
@@ -50,15 +51,17 @@ export function Projects() {
       <div className="mx-auto max-w-7xl px-5 sm:px-8">
         <div className="flex flex-col gap-6 border-b border-border pb-10 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
-            <div className="mb-4 flex items-center gap-3">
-              <span className="hud-label text-accent">03 · obras</span>
-              <span className="h-px w-12 bg-accent/40" />
-            </div>
-            <h2 className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl">
-              Obras instaladas
-              <br />
-              <span className="italic text-accent">en la capital.</span>
-            </h2>
+            <GlassReveal>
+              <div className="mb-4 flex items-center gap-3">
+                <span className="hud-label text-accent">03 · obras</span>
+                <span className="h-px w-12 bg-accent/40" />
+              </div>
+              <h2 className="font-display text-4xl font-light leading-[1.05] tracking-[-0.02em] sm:text-5xl">
+                Obras instaladas
+                <br />
+                <span className="italic text-accent">en la capital.</span>
+              </h2>
+            </GlassReveal>
           </div>
           <div className="flex flex-wrap gap-2">
             {FILTERS.map((f) => (
