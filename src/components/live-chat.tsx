@@ -50,6 +50,7 @@ export function LiveChat() {
   const [messages, setMessages] = React.useState<ChatMessage[]>([WELCOME_MSG]);
   const [input, setInput] = React.useState("");
   const [connected, setConnected] = React.useState(false);
+  const [realtimeAvailable, setRealtimeAvailable] = React.useState(true);
   const [atelierTyping, setAtelierTyping] = React.useState(false);
   const [presence, setPresence] = React.useState<PresencePayload | null>(null);
 
@@ -59,7 +60,10 @@ export function LiveChat() {
   // --- Socket lifecycle ----------------------------------------------------
   React.useEffect(() => {
     const sock = getSocket();
-    if (!sock) return; // server-side render — nothing to do.
+    if (!sock) {
+      setRealtimeAvailable(false);
+      return;
+    }
 
     const onConnect = () => setConnected(true);
     const onDisconnect = () => setConnected(false);
@@ -133,7 +137,10 @@ export function LiveChat() {
     const text = input.trim();
     if (!text) return;
     const sock = getSocket();
-    if (!sock) return;
+    if (!sock) {
+      setRealtimeAvailable(false);
+      return;
+    }
 
     // Optimistic local echo so the visitor sees their message immediately,
     // even if the socket is mid-reconnect.
@@ -215,7 +222,11 @@ export function LiveChat() {
                   PRISMA · Atelier en vivo
                 </span>
                 <span className="truncate text-[0.7rem] text-[var(--humo)]">
-                  {connected ? "en línea" : "conectando…"}
+                  {!realtimeAvailable
+                    ? "chat temporalmente no disponible"
+                    : connected
+                      ? "en línea"
+                      : "conectando…"}
                   {presence && presence.count > 0
                     ? ` · ${presence.count} ${presence.count === 1 ? "persona" : "personas"} viendo`
                     : ""}
@@ -273,15 +284,20 @@ export function LiveChat() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={onKey}
-                  placeholder="Escribe tu mensaje…"
+                  placeholder={
+                    realtimeAvailable
+                      ? "Escribe tu mensaje…"
+                      : "Usa la sección de contacto"
+                  }
                   aria-label="Mensaje al atelier"
+                  disabled={!realtimeAvailable}
                   maxLength={1000}
                   className="h-11 flex-1 rounded-full border-black/10 bg-white/70 text-sm text-[var(--obsidiana)] placeholder:text-[var(--humo)] focus-visible:ring-[var(--cobre)]"
                 />
                 <Button
                   type="button"
                   onClick={send}
-                  disabled={!input.trim()}
+                  disabled={!realtimeAvailable || !input.trim()}
                   aria-label="Enviar mensaje"
                   className="h-11 w-11 shrink-0 rounded-full bg-[var(--cobre)] text-white hover:bg-[var(--cobre-bright)] disabled:opacity-40 disabled:hover:bg-[var(--cobre)]"
                 >
@@ -292,7 +308,9 @@ export function LiveChat() {
                 className="mt-2 px-1 text-[0.62rem] uppercase tracking-[0.16em] text-[var(--humo)]"
                 style={{ fontFamily: "var(--font-plex-mono)" }}
               >
-                Taller CDMX · Respuesta en segundos · Enter para enviar
+                {realtimeAvailable
+                  ? "Taller CDMX · Respuesta en segundos · Enter para enviar"
+                  : "Puedes escribirnos en Contacto o solicitar una cotización"}
               </p>
             </footer>
           </motion.div>
@@ -342,11 +360,17 @@ export function LiveChat() {
           <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center">
             <span
               className={cn(
-                "absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75",
-                !reduceMotion && "animate-ping"
+                "absolute inline-flex h-full w-full rounded-full opacity-75",
+                connected ? "bg-emerald-500" : "bg-amber-500",
+                !reduceMotion && connected && "animate-ping"
               )}
             />
-            <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" />
+            <span
+              className={cn(
+                "relative inline-flex h-3 w-3 rounded-full ring-2 ring-white",
+                connected ? "bg-emerald-500" : "bg-amber-500"
+              )}
+            />
           </span>
         )}
       </motion.button>

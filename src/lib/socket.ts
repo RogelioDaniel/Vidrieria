@@ -26,11 +26,25 @@ export function getSocket(): Socket | null {
 
   if (socket) return socket;
 
-  socket = io("/?XTransformPort=3003", {
-    path: "/", // gateway uses this to route — DO NOT change.
+  const remoteUrl = process.env.NEXT_PUBLIC_SOCKET_URL?.trim();
+  const remotePath = process.env.NEXT_PUBLIC_SOCKET_PATH?.trim();
+  const disabled = process.env.NEXT_PUBLIC_SOCKET_DISABLED === "true";
+  const hostname = window.location.hostname;
+  const localGateway =
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  const hostedWithoutSocket =
+    process.env.NODE_ENV === "production" && !localGateway && !remoteUrl;
+
+  // XTransformPort is a local Caddy development contract. Hosted origins
+  // (Vercel or a custom domain) must opt into a real public socket endpoint;
+  // otherwise the browser would retry a nonexistent wss:// service forever.
+  if (disabled || hostedWithoutSocket) return null;
+
+  socket = io(remoteUrl || "/?XTransformPort=3003", {
+    path: remoteUrl ? remotePath || "/socket.io" : "/",
     transports: ["websocket", "polling"],
     reconnection: true,
-    reconnectionAttempts: Infinity,
+    reconnectionAttempts: remoteUrl ? 5 : Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 8000,
     timeout: 10000,
@@ -63,4 +77,3 @@ export function getSocket(): Socket | null {
  * without forcing a connection at import time.
  */
 export type { Socket };
-

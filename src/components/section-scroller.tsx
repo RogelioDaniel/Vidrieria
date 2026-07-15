@@ -3,24 +3,24 @@
 /**
  * SectionScroller — the "guided pages" modality.
  *
- * Replaces rigid CSS scroll-snap with a controlled glide: on desktop, once a
- * section is scrolled to its edge, the next wheel/keyboard gesture eases to the
- * neighbouring section (native smooth scroll) — tall sections (catálogo,
- * agenda) still scroll freely inside, so nothing gets hijacked. Touch devices
- * keep fully native scrolling.
+ * Replaces rigid CSS scroll-snap with controlled section stepping on desktop.
+ * Tall sections still scroll freely inside, while touch devices keep fully
+ * native scrolling.
  *
- * Every real section change — down or up, wheel, keyboard, touch, or rail —
- * fires the same themed transition: smoked/frosted tiles arrive from the scroll
- * direction, assemble a pane, then clear to reveal the neighbouring section.
+ * Visible transitions freeze the current section as glass, fracture it, swap
+ * to the target only while fully covered, then reconstruct/reveal the target.
+ * Wheel transitions remain alternating; explicit desktop links always play.
  *
  * A diamond dot-rail (desktop) mirrors the logo mark and tracks/jumps sections.
  */
 
 import * as React from 'react'
-import { motion, useReducedMotion, type Variants } from 'framer-motion'
-import { GlassNavigationTransition } from '@/components/glass-intro'
+import { useReducedMotion } from 'framer-motion'
+import {
+  GlassNavigationTransition,
+  type GlassImpact,
+} from '@/components/glass-intro'
 
-const ease = [0.65, 0, 0.35, 1] as const
 const LOCK_MS = 640
 
 const SECTIONS = [
@@ -37,9 +37,11 @@ const SECTIONS = [
 
 type Transition = {
   key: number
-  dir: 1 | -1
-  kind: 'guided' | 'navigation'
+  targetIndex: number
+  updateHash: boolean
 }
+
+type QueuedTarget = Pick<Transition, 'targetIndex' | 'updateHash'>
 
 function isCompactViewport() {
   return (
@@ -99,14 +101,15 @@ export function SectionScroller() {
   const reduce = useReducedMotion()
   const [active, setActive] = React.useState(0)
   const [transition, setTransition] = React.useState<Transition | null>(null)
+  const transitionRef = React.useRef<Transition | null>(null)
 
   const activeRef = React.useRef(0)
   const animatingRef = React.useRef(false)
-  const settledRef = React.useRef(false)
-  const programmaticTargetRef = React.useRef<number | null>(null)
   const transitionKeyRef = React.useRef(0)
   const transitionCountRef = React.useRef(0)
   const coarseRef = React.useRef(false)
+  const queuedTargetRef = React.useRef<QueuedTarget | null>(null)
+  const quietTimerRef = React.useRef<number | null>(null)
 
   // Browsers normally restore the previous scroll offset on reload. PRISMA's
   // overture starts a new visit, so always begin it at the hero instead.
@@ -172,64 +175,201 @@ export function SectionScroller() {
     return activeRef.current
   }, [els])
 
-  const play = React.useCallback(
-    (from: number, to: number, kind: Transition['kind'] = 'guided') => {
-      // Touch navigation stays native: no guided jump and no reconstruction
-      // overlay on a small/coarse viewport.
-      if (
-        reduce ||
-        prefersDataSaving() ||
-        (kind === 'guided' && isCompactViewport())
-      )
-        return
-      // Let the workshop breathe: alternate visible and quiet section changes
-      // instead of stacking a costly overlay on every wheel gesture.
-      if (kind === 'guided') {
-        transitionCountRef.current += 1
-        if (transitionCountRef.current % 2 === 0) {
-          setTransition(null)
-          return
-        }
-      }
-      transitionKeyRef.current += 1
-      setTransition({
-        key: transitionKeyRef.current,
-        dir: to > from ? 1 : -1,
-        kind,
+  const commitSection = React.useCallback(
+    (
+      targetIndex: number,
+      updateHash: boolean,
+      impact: GlassImpact = { x: 50, y: 50 },
+    ) => {
+      const section = SECTIONS[targetIndex]
+      const element = section && document.getElementById(section.id)
+      if (!section || !element) return
+
+      // The target changes only while the fracture fully covers the viewport.
+      // Disable the global smooth behavior for this single frame so no page
+      // glide can leak behind the reconstructing glass.
+      const root = document.documentElement
+      const previousBehavior = root.style.scrollBehavior
+      root.style.scrollBehavior = 'auto'
+      element.scrollIntoView({ behavior: 'auto', block: 'start' })
+      window.requestAnimationFrame(() => {
+        root.style.scrollBehavior = previousBehavior
       })
+
+      // Reconstruct the actual destination DOM — text, imagery and controls —
+      // through the same irregular impact point instead of merely placing a
+      // decorative pane over a smooth scroll.
+      const rect = element.getBoundingClientRect()
+      const centerX = Math.max(6, Math.min(94, impact.x))
+      const centerY = Math.max(
+        4,
+        Math.min(
+          96,
+          (((impact.y / 100) * window.innerHeight - rect.top) /
+            Math.max(1, rect.height)) *
+            100,
+        ),
+      )
+      const radii = Array.from({ length: 30 }, () => 0.78 + Math.random() * 0.4)
+      const polygonAt = (radius: number) =>
+        `polygon(${radii
+          .map((jitter, index) => {
+            const angle = (index / radii.length) * Math.PI * 2
+            const spike = index % 7 === 0 ? 1.16 : 1
+            const x = centerX + Math.cos(angle) * radius * jitter * spike
+            const y = centerY + Math.sin(angle) * radius * jitter * spike
+            return `${x.toFixed(2)}% ${y.toFixed(2)}%`
+          })
+          .join(', ')})`
+
+      if (
+        !reduce &&
+        !prefersDataSaving() &&
+        typeof element.animate === 'function'
+      ) {
+        const reveal = element.animate(
+          [
+            {
+              clipPath: polygonAt(1.2),
+              opacity: 0.72,
+              transform: 'scale(0.996)',
+            },
+            {
+              clipPath: polygonAt(64),
+              opacity: 0.94,
+              transform: 'scale(0.999)',
+              offset: 0.64,
+            },
+            {
+              clipPath: polygonAt(240),
+              opacity: 1,
+              transform: 'scale(1)',
+            },
+          ],
+          {
+            duration: 610,
+            easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
+            fill: 'both',
+          },
+        )
+        void reveal.finished.then(() => reveal.cancel()).catch(() => {})
+      }
+
+      activeRef.current = targetIndex
+      setActive(targetIndex)
+      if (updateHash && window.location.hash !== `#${section.id}`) {
+        window.history.pushState(null, '', `#${section.id}`)
+      }
     },
     [reduce],
   )
 
-  const goTo = React.useCallback(
-    (to: number, kind: Transition['kind'] = 'guided') => {
-      if (isCompactViewport()) return false
-      const target = Math.max(0, Math.min(SECTIONS.length - 1, to))
-      const from = activeRef.current
-      if (target === from || animatingRef.current) return false
-      const el = document.getElementById(SECTIONS[target].id)
-      if (!el) return false
+  const beginFracture = React.useCallback(
+    (targetIndex: number, updateHash: boolean) => {
+      const target = Math.max(0, Math.min(SECTIONS.length - 1, targetIndex))
+      const element = document.getElementById(SECTIONS[target].id)
+      if (!element || animatingRef.current) return false
+
+      const from = currentIndex()
+      const alreadyAtTarget =
+        target === from && Math.abs(element.getBoundingClientRect().top) <= 2
+      if (alreadyAtTarget) return false
 
       animatingRef.current = true
-      programmaticTargetRef.current = target
-      play(from, target, kind)
+      transitionKeyRef.current += 1
+      const pending: Transition = {
+        key: transitionKeyRef.current,
+        targetIndex: target,
+        updateHash,
+      }
+      transitionRef.current = pending
+      setTransition(pending)
+      return true
+    },
+    [currentIndex],
+  )
+
+  const finishFracture = React.useCallback(() => {
+    transitionRef.current = null
+    setTransition(null)
+    animatingRef.current = false
+    const queued = queuedTargetRef.current
+    queuedTargetRef.current = null
+    if (queued) {
+      window.requestAnimationFrame(() => {
+        beginFracture(queued.targetIndex, queued.updateHash)
+      })
+    }
+  }, [beginFracture])
+
+  const revealTarget = React.useCallback((impact: GlassImpact) => {
+    const pending = transitionRef.current
+    if (!pending) return
+    commitSection(pending.targetIndex, pending.updateHash, impact)
+  }, [commitSection])
+
+  // Explicit navigation always wins. A click received during motion is queued
+  // (last click wins) so it cannot leak a native hash jump under the glass and
+  // still receives its own complete fracture/reconstruction cycle afterward.
+  const requestFracture = React.useCallback(
+    (targetIndex: number, updateHash: boolean) => {
+      const target = Math.max(0, Math.min(SECTIONS.length - 1, targetIndex))
+      if (!document.getElementById(SECTIONS[target].id)) return false
+
+      if (animatingRef.current) {
+        queuedTargetRef.current = { targetIndex: target, updateHash }
+        return true
+      }
+
+      return beginFracture(target, updateHash)
+    },
+    [beginFracture],
+  )
+
+  const goTo = React.useCallback(
+    (to: number) => {
+      if (isCompactViewport() || animatingRef.current) return false
+      const target = Math.max(0, Math.min(SECTIONS.length - 1, to))
+      const from = currentIndex()
+      if (target === from) return false
+      const element = document.getElementById(SECTIONS[target].id)
+      if (!element) return false
+
+      // One guided step fractures; the next stays quiet, as requested.
+      transitionCountRef.current += 1
+      const visibleTransition =
+        !reduce &&
+        !prefersDataSaving() &&
+        transitionCountRef.current % 2 === 1
+      if (visibleTransition) return beginFracture(target, false)
+
+      animatingRef.current = true
       activeRef.current = target
       setActive(target)
-      el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
-
-      window.setTimeout(() => {
+      element.scrollIntoView({
+        behavior: reduce ? 'auto' : 'smooth',
+        block: 'start',
+      })
+      if (quietTimerRef.current !== null) {
+        window.clearTimeout(quietTimerRef.current)
+      }
+      quietTimerRef.current = window.setTimeout(() => {
+        quietTimerRef.current = null
         animatingRef.current = false
-        programmaticTargetRef.current = null
+        const queued = queuedTargetRef.current
+        queuedTargetRef.current = null
+        if (queued) {
+          beginFracture(queued.targetIndex, queued.updateHash)
+        }
       }, LOCK_MS)
       return true
     },
-    [play, reduce],
+    [beginFracture, currentIndex, reduce],
   )
 
-  // Same-page links are owned by Next/browser navigation, but their click is
-  // observed in capture phase so the glass starts before the hash scroll. We
-  // deliberately do not preventDefault: Radix SheetClose/DialogClose must be
-  // allowed to close and release their scroll lock normally.
+  // Desktop section links pause their native hash jump. The destination is
+  // committed only once the fracture reports full coverage. Mobile/coarse,
+  // reduced-motion and Save-Data keep ordinary native anchor navigation.
   React.useEffect(() => {
     const onSectionLinkClick = (event: MouseEvent) => {
       if (
@@ -238,9 +378,9 @@ export function SectionScroller() {
         event.ctrlKey ||
         event.shiftKey ||
         event.altKey ||
-        animatingRef.current ||
         reduce ||
-        prefersDataSaving()
+        prefersDataSaving() ||
+        isCompactViewport()
       )
         return
 
@@ -270,23 +410,30 @@ export function SectionScroller() {
         Math.abs(targetElement.getBoundingClientRect().top) <= 2
       if (alreadyAtTarget) return
 
-      animatingRef.current = true
-      programmaticTargetRef.current = targetIndex
-      play(from, targetIndex, 'navigation')
-      activeRef.current = targetIndex
-      setActive(targetIndex)
+      event.preventDefault()
+      if (!requestFracture(targetIndex, true)) return
 
-      const unlockAfter = isCompactViewport() ? 680 : 1150
-      window.setTimeout(() => {
-        animatingRef.current = false
-        programmaticTargetRef.current = null
-      }, unlockAfter)
+      // Radix close actions ignore default-prevented clicks. If the CTA lives
+      // inside a modal, close that layer explicitly; the target swap will not
+      // happen until the glass is opaque, comfortably after this microtask.
+      if (anchor.closest('[role="dialog"]')) {
+        window.queueMicrotask(() => {
+          document.dispatchEvent(
+            new KeyboardEvent('keydown', {
+              key: 'Escape',
+              code: 'Escape',
+              bubbles: true,
+              cancelable: true,
+            }),
+          )
+        })
+      }
     }
 
     document.addEventListener('click', onSectionLinkClick, true)
     return () =>
       document.removeEventListener('click', onSectionLinkClick, true)
-  }, [currentIndex, play, reduce])
+  }, [currentIndex, reduce, requestFracture])
 
   // Desktop wheel + keyboard: advance a section when the current one is at its
   // scroll edge; otherwise let native scroll roll through tall sections.
@@ -328,12 +475,7 @@ export function SectionScroller() {
     }
 
     const onKey = (e: KeyboardEvent) => {
-      if (
-        reduce ||
-        !desktop() ||
-        pageLocked() ||
-        animatingRef.current
-      )
+      if (reduce || !desktop() || pageLocked())
         return
       const t = e.target as HTMLElement | null
       // Don't hijack arrows from form fields or ARIA widgets that use them
@@ -346,6 +488,17 @@ export function SectionScroller() {
           ))
       )
         return
+      if (animatingRef.current) {
+        if (
+          e.key === 'PageDown' ||
+          e.key === 'ArrowDown' ||
+          e.key === 'PageUp' ||
+          e.key === 'ArrowUp'
+        ) {
+          e.preventDefault()
+        }
+        return
+      }
       const idx = currentIndex()
       if (e.key === 'PageDown' || e.key === 'ArrowDown') {
         const el = document.getElementById(SECTIONS[idx].id)
@@ -372,22 +525,17 @@ export function SectionScroller() {
     }
   }, [currentIndex, goTo, reduce])
 
-  // Active-section tracking. On native (touch) scroll this also fires the
-  // transition; on programmatic glides goTo already fired it, so we skip.
+  // Active-section tracking never creates an effect by itself. This is what
+  // keeps touch scrolling completely native and free of glass overlays.
   React.useEffect(() => {
     let raf = 0
     const compute = () => {
       raf = 0
       const idx = currentIndex()
       if (idx !== activeRef.current) {
-        const from = activeRef.current
         activeRef.current = idx
         setActive(idx)
-        if (settledRef.current && programmaticTargetRef.current === null) {
-          play(from, idx)
-        }
       }
-      settledRef.current = true
     }
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(compute)
@@ -400,34 +548,34 @@ export function SectionScroller() {
       window.removeEventListener('resize', onScroll)
       if (raf) cancelAnimationFrame(raf)
     }
-  }, [currentIndex, play])
+  }, [currentIndex])
 
-  const jumpTo = (i: number) => goTo(i, 'navigation')
-  const clearTransition = React.useCallback(() => setTransition(null), [])
+  React.useEffect(
+    () => () => {
+      if (quietTimerRef.current !== null) {
+        window.clearTimeout(quietTimerRef.current)
+      }
+    },
+    [],
+  )
+
+  const jumpTo = (i: number) => {
+    if (reduce || prefersDataSaving()) {
+      commitSection(i, true)
+      return
+    }
+    requestFracture(i, true)
+  }
 
   return (
     <>
-      {transition && !reduce &&
-        (transition.kind === 'navigation' ? (
-          isCompactViewport() ? (
-            <CompactGlassNavigationTransition
-              key={transition.key}
-              dir={transition.dir}
-              onDone={clearTransition}
-            />
-          ) : (
-            <GlassNavigationTransition
-              key={transition.key}
-              onComplete={clearTransition}
-            />
-          )
-        ) : (
-          <GlassTransition
-            key={transition.key}
-            dir={transition.dir}
-            onDone={clearTransition}
-          />
-        ))}
+      {transition && !reduce && (
+        <GlassNavigationTransition
+          key={transition.key}
+          onCovered={revealTarget}
+          onComplete={finishFracture}
+        />
+      )}
 
       <nav
         aria-label="Secciones"
@@ -458,192 +606,5 @@ export function SectionScroller() {
         })}
       </nav>
     </>
-  )
-}
-
-/* ---------- transition overlays ---------- */
-
-function GlassTransition({
-  dir,
-  onDone,
-}: {
-  dir: 1 | -1
-  onDone: () => void
-}) {
-  // Safety net: guarantee cleanup even if onAnimationComplete never fires
-  // (e.g. the tab is backgrounded mid-transition and framer-motion pauses).
-  React.useEffect(() => {
-    const t = window.setTimeout(onDone, 1200)
-    return () => window.clearTimeout(t)
-  }, [onDone])
-
-  return <AssembleGlass dir={dir} onDone={onDone} />
-}
-
-// Explicit taps still receive branded feedback on mobile, but through eight
-// inexpensive CSS facets. Native scrolling remains untouched and scroll
-// gestures never mount this component.
-function CompactGlassNavigationTransition({
-  dir,
-  onDone,
-}: {
-  dir: 1 | -1
-  onDone: () => void
-}) {
-  const panes = React.useMemo(
-    () =>
-      Array.from({ length: 8 }).map(() => {
-        const random = () => Math.random()
-        return {
-          x: (random() - 0.5) * 86,
-          y: dir * (22 + random() * 72) + (random() - 0.5) * 36,
-          r: (random() - 0.5) * 42,
-          clipPath: `polygon(${[
-            `${-10 + random() * 18}% ${-8 + random() * 18}%`,
-            `${86 + random() * 20}% ${-10 + random() * 18}%`,
-            `${108 - random() * 18}% ${82 + random() * 22}%`,
-            `${82 - random() * 20}% ${110 - random() * 18}%`,
-            `${-10 + random() * 20}% ${106 - random() * 18}%`,
-          ].join(', ')})`,
-        }
-      }),
-    [dir],
-  )
-
-  React.useEffect(() => {
-    const safety = window.setTimeout(onDone, 850)
-    return () => window.clearTimeout(safety)
-  }, [onDone])
-
-  return (
-    <motion.div
-      aria-hidden="true"
-      data-prisma-navigation-transition="compact"
-      className="pointer-events-none fixed inset-0 z-[90] overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: [0, 1, 1, 0] }}
-      transition={{ duration: 0.56, times: [0, 0.12, 0.82, 1], ease }}
-      onAnimationComplete={onDone}
-    >
-      <motion.div
-        className="absolute inset-0 bg-[#100f0d]"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: [0, 0.82, 0.9, 0] }}
-        transition={{ duration: 0.56, times: [0, 0.34, 0.7, 1], ease }}
-      />
-      <div className="grid h-full w-full grid-cols-2 grid-rows-4">
-        {panes.map((pane, index) => (
-          <motion.div
-            key={index}
-            className="section-transition-pane h-full w-full"
-            style={{ clipPath: pane.clipPath }}
-            initial={{ x: 0, y: 0, rotate: 0, opacity: 0.94 }}
-            animate={{
-              x: [0, pane.x, 0],
-              y: [0, pane.y, 0],
-              rotate: [0, pane.r, 0],
-              opacity: [0.94, 0.34, 0.98],
-            }}
-            transition={{
-              duration: 0.5,
-              times: [0, 0.46, 1],
-              ease,
-              delay: index * 0.006,
-            }}
-          />
-        ))}
-      </div>
-    </motion.div>
-  )
-}
-
-// Polygonal panes converge from the gesture's direction into a full sheet,
-// then clear — "gathering glass to build the next section".
-function AssembleGlass({
-  dir,
-  onDone,
-}: {
-  dir: 1 | -1
-  onDone: () => void
-}) {
-  const compact =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(max-width: 640px)').matches
-  const columns = compact ? 3 : 5
-  const rows = compact ? 4 : 4
-  const panes = React.useMemo(
-    () => {
-      const random = () => Math.random()
-      return Array.from({ length: columns * rows }).map(() => ({
-        x: (random() - 0.5) * (compact ? 70 : 150),
-        y:
-          dir * (28 + random() * (compact ? 80 : 120)) +
-          (random() - 0.5) * 60,
-        r: (random() - 0.5) * (compact ? 30 : 56),
-        // Overshooting the cell edges keeps the pane field covered while the
-        // clipped corners make every transition read as a different cut glass
-        // facet instead of a square grid.
-        clipPath: `polygon(${[
-          `${-12 + random() * 18}% ${-10 + random() * 20}%`,
-          `${86 + random() * 22}% ${-12 + random() * 20}%`,
-          `${112 - random() * 20}% ${82 + random() * 24}%`,
-          `${84 - random() * 22}% ${114 - random() * 18}%`,
-          `${-12 + random() * 22}% ${108 - random() * 20}%`,
-        ].join(', ')})`,
-      }))
-    },
-    [columns, compact, dir, rows],
-  )
-
-  const container: Variants = {
-    hidden: {},
-    show: { transition: { staggerChildren: 0.01 } },
-  }
-  const shardV: Variants = {
-    hidden: (c: { x: number; y: number; r: number }) => ({
-      x: c.x,
-      y: c.y,
-      rotate: c.r,
-      opacity: 0,
-    }),
-    show: {
-      x: 0,
-      y: 0,
-      rotate: 0,
-      opacity: 1,
-      transition: { duration: 0.38, ease },
-    },
-  }
-
-  return (
-    <motion.div
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-[85] overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: [0, 1, 1, 0] }}
-      transition={{ duration: 0.64, times: [0, 0.2, 0.56, 1], ease }}
-      onAnimationComplete={onDone}
-    >
-      <motion.div
-        className="grid h-full w-full"
-        style={{
-          gridTemplateColumns: `repeat(${columns}, 1fr)`,
-          gridTemplateRows: `repeat(${rows}, 1fr)`,
-        }}
-        variants={container}
-        initial="hidden"
-        animate="show"
-      >
-        {panes.map((c, i) => (
-          <motion.div
-            key={i}
-            custom={c}
-            variants={shardV}
-            className="section-transition-pane h-full w-full"
-            style={{ clipPath: c.clipPath }}
-          />
-        ))}
-      </motion.div>
-    </motion.div>
   )
 }

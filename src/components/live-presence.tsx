@@ -30,11 +30,15 @@ export function LivePresence({
 }: LivePresenceProps) {
   const [count, setCount] = React.useState<number | null>(null);
   const [connected, setConnected] = React.useState(false);
+  const [realtimeAvailable, setRealtimeAvailable] = React.useState(true);
   const reduceMotion = !!useReducedMotion();
 
   React.useEffect(() => {
     const sock = getSocket();
-    if (!sock) return; // SSR
+    if (!sock) {
+      setRealtimeAvailable(false);
+      return;
+    }
 
     const onPresence = (p: PresencePayload | null) => {
       if (p && typeof p.count === "number") setCount(p.count);
@@ -56,9 +60,11 @@ export function LivePresence({
   }, []);
 
   const showLive = connected && count !== null && count > 0;
-  const label = showLive
-    ? `${count} ${count === 1 ? "persona" : "personas"} viendo ahora`
-    : "en vivo";
+  const label = !realtimeAvailable
+    ? "atención disponible"
+    : showLive
+      ? `${count} ${count === 1 ? "persona" : "personas"} viendo ahora`
+      : "en vivo";
 
   const palette =
     variant === "solid"

@@ -24,9 +24,10 @@ const FROST = new THREE.Color('#c2d0d8')
 const COPPER = new THREE.Color('#d18a45')
 const OBSIDIAN = '#100f0d'
 
-// Fracture resolution
-const RINGS = 8
-const SECTORS = 20
+// A denser radial graph creates fine, irregular hairline cracks instead of the
+// heavy geometric web produced by a coarse pane.
+const RINGS = 10
+const SECTORS = 28
 
 // Timeline (seconds) — paced to make the material transformation legible
 // without overstaying its welcome (~4.7s total).
@@ -101,7 +102,7 @@ function buildShardGeometry(
   const rand = mulberry32(seed)
   const maxR = Math.hypot(paneW / 2, paneH / 2) * 1.08
   const angularOffset = rand() * Math.PI * 2
-  const radiusPower = 1.2 + rand() * 0.3
+  const radiusPower = 1.45 + rand() * 0.25
 
   // Shared node grid so the assembled pane is seamless (no gaps).
   // nodes[k][j] for ring k (0=impact center) and sector j.
@@ -133,6 +134,7 @@ function buildShardGeometry(
   const barys: number[] = []
   const randoms: number[] = []
   const delays: number[] = []
+  const edgeMasks: number[] = []
   const uvs: number[] = []
 
   const B = [
@@ -153,6 +155,7 @@ function buildShardGeometry(
     centroid: THREE.Vector2,
     rnd: number[],
     delay: number,
+    edgeMask: number[],
   ) => {
     const tri = [a, b, cc]
     for (let i = 0; i < 3; i++) {
@@ -162,6 +165,7 @@ function buildShardGeometry(
       barys.push(B[i][0], B[i][1], B[i][2])
       randoms.push(rnd[0], rnd[1], rnd[2])
       delays.push(delay)
+      edgeMasks.push(edgeMask[0], edgeMask[1], edgeMask[2])
       const uv = toUv(p)
       uvs.push(uv[0], uv[1])
     }
@@ -182,15 +186,18 @@ function buildShardGeometry(
         .add(p11)
         .multiplyScalar(0.25)
       const rnd = [rand() * 2 - 1, rand() * 2 - 1, rand() * 2 - 1]
+      // Keep radial/circumferential cuts; only a few diagonals become real
+      // secondary cracks. This removes the uniform triangulated-grid look.
+      const branch = rand() < 0.18 ? 1 : 0
       // crack propagates outward → inner shards break first
       const delay = k / RINGS
 
       if (k === 0) {
         // triangle fan at the impact core (p00 === p01 === center)
-        pushTri(nodes[0][0], p10, p11, centroid, rnd, delay)
+        pushTri(nodes[0][0], p10, p11, centroid, rnd, delay, [1, 1, 1])
       } else {
-        pushTri(p00, p10, p11, centroid, rnd, delay)
-        pushTri(p00, p11, p01, centroid, rnd, delay)
+        pushTri(p00, p10, p11, centroid, rnd, delay, [1, branch, 1])
+        pushTri(p00, p11, p01, centroid, rnd, delay, [1, 1, branch])
       }
     }
   }
@@ -204,6 +211,10 @@ function buildShardGeometry(
   geo.setAttribute('aBary', new THREE.Float32BufferAttribute(barys, 3))
   geo.setAttribute('aRandom', new THREE.Float32BufferAttribute(randoms, 3))
   geo.setAttribute('aDelay', new THREE.Float32BufferAttribute(delays, 1))
+  geo.setAttribute(
+    'aEdgeMask',
+    new THREE.Float32BufferAttribute(edgeMasks, 3),
+  )
   geo.setAttribute('aUv', new THREE.Float32BufferAttribute(uvs, 2))
   return geo
 }
@@ -235,12 +246,14 @@ const VERT = /* glsl */ `
   attribute vec3 aBary;
   attribute vec3 aRandom;
   attribute float aDelay;
+  attribute vec3 aEdgeMask;
   attribute vec2 aUv;
 
   uniform float uShatter;
   uniform vec2 uImpact;
 
   varying vec3 vBary;
+  varying vec3 vEdgeMask;
   varying vec2 vUv;
   varying float vShatter;
   varying float vDist;
@@ -275,6 +288,7 @@ const VERT = /* glsl */ `
     vec3 pos = aCentroid + rotated + explode;
 
     vBary = aBary;
+    vEdgeMask = aEdgeMask;
     vUv = aUv;
     vShatter = s;
     vDist = length(aCentroid.xy - uImpact);
@@ -294,17 +308,19 @@ const FRAG = /* glsl */ `
   uniform float uGlint;
 
   varying vec3 vBary;
+  varying vec3 vEdgeMask;
   varying vec2 vUv;
   varying float vShatter;
   varying float vDist;
 
   void main() {
-    // Frosted base
-    vec3 col = mix(uFrost * 0.42, uFrost * 0.72, 0.5);
+    // Clear low-iron glass: present enough to catch light, transparent enough
+    // for the real section beneath to remain the visual subject.
+    vec3 col = mix(uFrost * 0.26, uFrost * 0.48, 0.5);
 
     // Copper light pooling around the impact
     float glow = exp(-vDist * 0.55);
-    col = mix(col, uCopper, glow * 0.55);
+    col = mix(col, uCopper, glow * 0.24);
 
     // Etched wordmark leaves as the real landing page takes its place.
     vec4 tex = texture2D(uTex, vUv);
@@ -314,13 +330,19 @@ const FRAG = /* glsl */ `
       tex.a * 0.92 * (1.0 - uReveal)
     );
 
-    // Facet edges catching light — stronger as shards separate
-    float e = min(vBary.x, min(vBary.y, vBary.z));
-    float edge = 1.0 - smoothstep(0.0, 0.045, e);
-    col += edge * (0.35 + vShatter * 0.65) * vec3(1.0, 0.9, 0.74);
+    // Two-stage crack: a very thin charcoal cut plus a restrained silver/copper
+    // core. This reads as laminated glass hairlines, not glowing grout.
+    vec3 edgeCuts =
+      (vec3(1.0) - smoothstep(vec3(0.0), vec3(0.011), vBary)) * vEdgeMask;
+    vec3 coreCuts =
+      (vec3(1.0) - smoothstep(vec3(0.0), vec3(0.0028), vBary)) * vEdgeMask;
+    float edge = max(edgeCuts.x, max(edgeCuts.y, edgeCuts.z));
+    float edgeCore = max(coreCuts.x, max(coreCuts.y, coreCuts.z));
+    col = mix(col, vec3(0.018, 0.022, 0.024), edge * 0.68);
+    col += edgeCore * (0.08 + vShatter * 0.20) * vec3(0.82, 0.76, 0.68);
 
     // As it reforms, the pane clears rather than flashing opaque white.
-    col = mix(col, col * 0.4 + vec3(0.05, 0.065, 0.075), uReveal * 0.72);
+    col = mix(col, col * 0.52 + vec3(0.026, 0.034, 0.038), uReveal * 0.55);
 
     // A narrow copper refraction confirms the pane is intact. It never floods
     // the screen, so the hero remains readable throughout the handoff.
@@ -330,25 +352,20 @@ const FRAG = /* glsl */ `
       0.035,
       abs(vUv.x + vUv.y * 0.22 - glintLine)
     );
-    col += glint * uReveal * vec3(0.42, 0.25, 0.11);
+    col += glint * uReveal * vec3(0.22, 0.13, 0.06);
 
-    float glassAlpha = mix(0.82, 0.12, uReveal);
-    float edgeAlpha = mix(0.18, 0.38, uReveal);
+    float glassAlpha = mix(0.46, 0.055, uReveal);
+    float edgeAlpha = mix(0.12, 0.22, uReveal);
     float alpha = (glassAlpha + edge * edgeAlpha) * uOpacity;
     gl_FragColor = vec4(col, alpha);
   }
 `
 
 function hasWebGL(): boolean {
-  try {
-    const c = document.createElement('canvas')
-    return !!(
-      window.WebGLRenderingContext &&
-      (c.getContext('webgl') || c.getContext('experimental-webgl'))
-    )
-  } catch {
-    return false
-  }
+  // Creating a disposable probe context on every navigation eventually hits
+  // the browser's WebGL-context limit. The renderer constructor below is the
+  // authoritative capability check and already has a safe fallback.
+  return typeof window !== 'undefined' && Boolean(window.WebGLRenderingContext)
 }
 
 export function GlassIntro() {
@@ -644,6 +661,7 @@ export function GlassIntro() {
         geometry.dispose()
         material.dispose()
         wordmark.dispose()
+        renderer.forceContextLoss()
         renderer.dispose()
         if (renderer.domElement.parentNode === mount) {
           mount.removeChild(renderer.domElement)
@@ -708,20 +726,25 @@ export function GlassIntro() {
 
 const NAV_T = {
   form: 0.08,
-  shatter: 0.38,
-  reconstruct: 0.76,
-  end: 1.04,
+  shatter: 0.42,
+  hold: 0.52,
+  reconstruct: 1.02,
+  end: 1.26,
 }
+
+export type GlassImpact = { x: number; y: number }
 
 /**
  * Short, interaction-driven version of the loading fracture. It reuses the
  * same shard geometry and shader, but has no HUD and never locks page scroll.
- * The destination continues navigating underneath while the current pane
- * breaks, reforms over the new section, and clears.
+ * Once the pane becomes fully covered, onCovered swaps the real DOM target;
+ * the returning shards and receding mask then reveal that target itself.
  */
 export function GlassNavigationTransition({
+  onCovered,
   onComplete,
 }: {
+  onCovered: (impact: GlassImpact) => void
   onComplete: () => void
 }) {
   const mountRef = React.useRef<HTMLDivElement | null>(null)
@@ -737,20 +760,30 @@ export function GlassNavigationTransition({
       ).connection?.saveData,
     )
     if (reduce || saveData || !hasWebGL()) {
+      onCovered({ x: 50, y: 50 })
       onComplete()
       return
     }
 
     const mount = mountRef.current
     if (!mount) {
+      onCovered({ x: 50, y: 50 })
       onComplete()
       return
     }
 
+    let impactPoint: GlassImpact = { x: 50, y: 50 }
+    let covered = false
+    const cover = () => {
+      if (covered) return
+      covered = true
+      onCovered(impactPoint)
+    }
     let finished = false
     const finish = () => {
       if (finished) return
       finished = true
+      cover()
       onComplete()
     }
 
@@ -759,11 +792,17 @@ export function GlassNavigationTransition({
     const camera = new THREE.PerspectiveCamera(50, aspect, 0.1, 100)
     camera.position.z = 6
 
-    const renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      antialias: false,
-      powerPreference: 'high-performance',
-    })
+    let renderer: THREE.WebGLRenderer
+    try {
+      renderer = new THREE.WebGLRenderer({
+        alpha: true,
+        antialias: false,
+        powerPreference: 'high-performance',
+      })
+    } catch {
+      finish()
+      return
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25))
     renderer.setSize(window.innerWidth, window.innerHeight)
     renderer.setClearColor(0x000000, 0)
@@ -779,6 +818,10 @@ export function GlassNavigationTransition({
       paneW * (-0.14 + rand() * 0.28),
       paneH * (-0.11 + rand() * 0.22),
     )
+    impactPoint = {
+      x: 50 + (impact.x / vW) * 100,
+      y: 50 - (impact.y / vH) * 100,
+    }
     const geometry = buildShardGeometry(
       paneW,
       paneH,
@@ -816,9 +859,8 @@ export function GlassNavigationTransition({
     const setBackdrop = (reveal: number, opacity: number) => {
       const backdrop = backdropRef.current
       if (!backdrop) return
-      const currentVW = vH * camera.aspect
-      const xPct = 50 + (impact.x / currentVW) * 100
-      const yPct = 50 - (impact.y / vH) * 100
+      const xPct = impactPoint.x
+      const yPct = impactPoint.y
       const impactX = (xPct / 100) * window.innerWidth
       const impactY = (yPct / 100) * window.innerHeight
       const farX = Math.max(impactX, window.innerWidth - impactX)
@@ -835,7 +877,7 @@ export function GlassNavigationTransition({
     }
     window.addEventListener('resize', onResize)
 
-    let start = performance.now()
+    const start = performance.now()
     let raf = 0
     let watchdog = 0
     const tick = () => {
@@ -851,11 +893,16 @@ export function GlassNavigationTransition({
         const k = (t - NAV_T.form) / (NAV_T.shatter - NAV_T.form)
         shatter = easeInOutCubic(k)
         backdropOpacity = easeInOutCubic(k)
+      } else if (t < NAV_T.hold) {
+        cover()
+        shatter = 1
+        backdropOpacity = 1
       } else if (t < NAV_T.reconstruct) {
-        const k = (t - NAV_T.shatter) /
-          (NAV_T.reconstruct - NAV_T.shatter)
+        cover()
+        const k = (t - NAV_T.hold) /
+          (NAV_T.reconstruct - NAV_T.hold)
         shatter = 1 - easeInOutCubic(k)
-        reveal = easeInOutCubic(k)
+        reveal = easeInOutCubic(Math.max(0, (k - 0.04) / 0.96))
         backdropOpacity = 1
       } else {
         const k = Math.min(
@@ -881,9 +928,22 @@ export function GlassNavigationTransition({
       raf = requestAnimationFrame(tick)
     }
 
-    renderer.compile(scene, camera)
+    try {
+      renderer.compile(scene, camera)
+    } catch {
+      geometry.dispose()
+      material.dispose()
+      emptyTexture.dispose()
+      renderer.forceContextLoss()
+      renderer.dispose()
+      if (renderer.domElement.parentNode === mount) {
+        mount.removeChild(renderer.domElement)
+      }
+      finish()
+      return
+    }
     raf = requestAnimationFrame(tick)
-    watchdog = window.setTimeout(finish, 1800)
+    watchdog = window.setTimeout(finish, 2100)
 
     return () => {
       cancelAnimationFrame(raf)
@@ -892,12 +952,13 @@ export function GlassNavigationTransition({
       geometry.dispose()
       material.dispose()
       emptyTexture.dispose()
+      renderer.forceContextLoss()
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) {
         mount.removeChild(renderer.domElement)
       }
     }
-  }, [onComplete])
+  }, [onComplete, onCovered])
 
   return (
     <div
@@ -910,7 +971,7 @@ export function GlassNavigationTransition({
         className="absolute inset-0 opacity-0"
         style={{
           background:
-            'radial-gradient(circle at center, rgba(184,115,51,0.22), rgba(16,15,13,0.98) 58%)',
+            'radial-gradient(circle at center, rgba(184,115,51,0.12), rgba(16,15,13,0.96) 64%)',
           willChange: 'clip-path, opacity',
         }}
       />
