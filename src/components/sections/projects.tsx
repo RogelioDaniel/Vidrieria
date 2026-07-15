@@ -104,6 +104,7 @@ export function Projects() {
               ref={carouselRef}
               role="region"
               aria-label="Carrusel de obras instaladas"
+              data-section-carousel
               className="carousel-strip flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2"
             >
             {projects.map((p, i) => (

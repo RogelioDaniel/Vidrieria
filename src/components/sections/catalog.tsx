@@ -151,6 +151,7 @@ export function Catalog() {
               ref={carouselRef}
               role="region"
               aria-label="Carrusel de materiales"
+              data-section-carousel
               className="carousel-strip flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2"
             >
             {products.map((p, i) => (
@@ -162,7 +163,7 @@ export function Catalog() {
                 transition={{ duration: 0.6, delay: (i % 3) * 0.08, ease }}
                 className="group relative flex min-w-0 shrink-0 basis-[88%] snap-start flex-col border border-border bg-card transition-colors hover:border-foreground/40 sm:basis-[48%] lg:basis-[31.8%]"
               >
-                <div className="relative h-36 overflow-hidden bg-muted sm:h-40 lg:h-44">
+                <div className="relative h-36 overflow-hidden bg-muted sm:h-40 lg:h-40">
                   <Image
                     src={p.image}
                     alt={p.name}
@@ -184,7 +185,7 @@ export function Catalog() {
                   </div>
                 </div>
 
-                <div className="flex flex-1 flex-col p-4">
+                <div className="flex flex-1 flex-col p-3.5">
                   <div className="flex items-start justify-between gap-3">
                     <h3 className="font-display text-xl font-medium leading-tight tracking-tight">
                       {p.name}
@@ -294,7 +295,7 @@ export function Catalog() {
             </div>
 
             {products.length > 1 && (
-              <div className="mt-3 flex items-center justify-between">
+              <div className="mt-2 flex items-center justify-between">
                 <span className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-muted-foreground">
                   desliza las muestras
                 </span>

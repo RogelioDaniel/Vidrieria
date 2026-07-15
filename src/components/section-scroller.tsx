@@ -45,6 +45,10 @@ function pageLocked() {
 
 function nestedScrollOwnsGesture(target: EventTarget | null, deltaY: number) {
   if (!(target instanceof Element)) return false
+  // Horizontal sample racks expose `overflow-y: auto` as a browser side effect
+  // of `overflow-x: auto`. Their 1–2px paint overflow must not consume the
+  // wheel gesture that advances the guided section.
+  if (target.closest('[data-section-carousel]')) return false
   if (target.closest('[role="dialog"], [data-radix-scroll-area-viewport]')) {
     return true
   }

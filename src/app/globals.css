@@ -309,7 +309,6 @@
 .viewport-section {
   display: grid;
   min-height: calc(100svh - 4rem);
-  scroll-margin-top: 4rem;
   align-items: center;
   padding-block: clamp(1.25rem, 3.5svh, 2.75rem);
 }
