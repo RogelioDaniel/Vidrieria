@@ -20,7 +20,7 @@ import * as React from 'react'
 import { motion, useReducedMotion, type Variants } from 'framer-motion'
 
 const ease = [0.65, 0, 0.35, 1] as const
-const LOCK_MS = 850
+const LOCK_MS = 640
 
 const SECTIONS = [
   { id: 'top', label: 'inicio' },
@@ -35,6 +35,14 @@ const SECTIONS = [
 ]
 
 type Transition = { key: number; dir: 1 | -1 }
+
+function isCompactViewport() {
+  return (
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(pointer: coarse)').matches ||
+      window.matchMedia('(max-width: 640px)').matches)
+  )
+}
 
 function pageLocked() {
   return (
@@ -81,6 +89,7 @@ export function SectionScroller() {
   const settledRef = React.useRef(false)
   const programmaticTargetRef = React.useRef<number | null>(null)
   const transitionKeyRef = React.useRef(0)
+  const transitionCountRef = React.useRef(0)
   const coarseRef = React.useRef(false)
 
   // Browsers normally restore the previous scroll offset on reload. PRISMA's
@@ -149,7 +158,16 @@ export function SectionScroller() {
 
   const play = React.useCallback(
     (from: number, to: number) => {
-      if (reduce) return
+      // Touch navigation stays native: no guided jump and no reconstruction
+      // overlay on a small/coarse viewport.
+      if (reduce || isCompactViewport()) return
+      // Let the workshop breathe: alternate visible and quiet section changes
+      // instead of stacking a costly overlay on every wheel gesture.
+      transitionCountRef.current += 1
+      if (transitionCountRef.current % 2 === 0) {
+        setTransition(null)
+        return
+      }
       transitionKeyRef.current += 1
       setTransition({
         key: transitionKeyRef.current,
@@ -161,6 +179,7 @@ export function SectionScroller() {
 
   const goTo = React.useCallback(
     (to: number) => {
+      if (isCompactViewport()) return false
       const target = Math.max(0, Math.min(SECTIONS.length - 1, to))
       const from = activeRef.current
       if (target === from || animatingRef.current) return false
@@ -223,7 +242,13 @@ export function SectionScroller() {
     }
 
     const onKey = (e: KeyboardEvent) => {
-      if (reduce || pageLocked() || animatingRef.current) return
+      if (
+        reduce ||
+        !desktop() ||
+        pageLocked() ||
+        animatingRef.current
+      )
+        return
       const t = e.target as HTMLElement | null
       // Don't hijack arrows from form fields or ARIA widgets that use them
       // (Radix slider / select / listbox / menu in the quote & booking forms).
@@ -348,15 +373,15 @@ function GlassTransition({
   // Safety net: guarantee cleanup even if onAnimationComplete never fires
   // (e.g. the tab is backgrounded mid-transition and framer-motion pauses).
   React.useEffect(() => {
-    const t = window.setTimeout(onDone, 1500)
+    const t = window.setTimeout(onDone, 1200)
     return () => window.clearTimeout(t)
   }, [onDone])
 
   return <AssembleGlass dir={dir} onDone={onDone} />
 }
 
-// Frosted panes converge from the gesture's direction into a full sheet, then
-// clear — "gathering glass to build the next section".
+// Polygonal panes converge from the gesture's direction into a full sheet,
+// then clear — "gathering glass to build the next section".
 function AssembleGlass({
   dir,
   onDone,
@@ -367,17 +392,29 @@ function AssembleGlass({
   const compact =
     typeof window !== 'undefined' &&
     window.matchMedia('(max-width: 640px)').matches
-  const columns = compact ? 4 : 6
-  const rows = compact ? 6 : 4
+  const columns = compact ? 3 : 5
+  const rows = compact ? 4 : 4
   const panes = React.useMemo(
-    () =>
-      Array.from({ length: columns * rows }).map(() => ({
-        x: (Math.random() - 0.5) * (compact ? 90 : 180),
+    () => {
+      const random = () => Math.random()
+      return Array.from({ length: columns * rows }).map(() => ({
+        x: (random() - 0.5) * (compact ? 70 : 150),
         y:
-          dir * (35 + Math.random() * (compact ? 90 : 150)) +
-          (Math.random() - 0.5) * 70,
-        r: (Math.random() - 0.5) * (compact ? 36 : 70),
-      })),
+          dir * (28 + random() * (compact ? 80 : 120)) +
+          (random() - 0.5) * 60,
+        r: (random() - 0.5) * (compact ? 30 : 56),
+        // Overshooting the cell edges keeps the pane field covered while the
+        // clipped corners make every transition read as a different cut glass
+        // facet instead of a square grid.
+        clipPath: `polygon(${[
+          `${-12 + random() * 18}% ${-10 + random() * 20}%`,
+          `${86 + random() * 22}% ${-12 + random() * 20}%`,
+          `${112 - random() * 20}% ${82 + random() * 24}%`,
+          `${84 - random() * 22}% ${114 - random() * 18}%`,
+          `${-12 + random() * 22}% ${108 - random() * 20}%`,
+        ].join(', ')})`,
+      }))
+    },
     [columns, compact, dir, rows],
   )
 
@@ -397,7 +434,7 @@ function AssembleGlass({
       y: 0,
       rotate: 0,
       opacity: 1,
-      transition: { duration: 0.5, ease },
+      transition: { duration: 0.38, ease },
     },
   }
 
@@ -407,7 +444,7 @@ function AssembleGlass({
       className="pointer-events-none fixed inset-0 z-[85] overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: [0, 1, 1, 0] }}
-      transition={{ duration: 0.82, times: [0, 0.24, 0.62, 1], ease }}
+      transition={{ duration: 0.64, times: [0, 0.2, 0.56, 1], ease }}
       onAnimationComplete={onDone}
     >
       <motion.div
@@ -426,6 +463,7 @@ function AssembleGlass({
             custom={c}
             variants={shardV}
             className="section-transition-pane h-full w-full"
+            style={{ clipPath: c.clipPath }}
           />
         ))}
       </motion.div>

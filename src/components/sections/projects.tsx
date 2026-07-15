@@ -77,7 +77,7 @@ export function Projects() {
               </h2>
             </GlassReveal>
           </div>
-          <div className="carousel-strip flex max-w-full gap-2 overflow-x-auto pb-1">
+          <div className="flex max-w-full flex-wrap gap-2 pb-1">
             {FILTERS.map((f) => (
               <button
                 key={f.id}
@@ -105,7 +105,7 @@ export function Projects() {
               role="region"
               aria-label="Carrusel de obras instaladas"
               data-section-carousel
-              className="carousel-strip flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2"
+              className="grid min-w-0 gap-4 pb-2 sm:grid-cols-2 lg:flex lg:snap-x lg:snap-mandatory lg:overflow-x-auto"
             >
             {projects.map((p, i) => (
               <motion.article
@@ -114,9 +114,9 @@ export function Projects() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-60px' }}
                 transition={{ duration: 0.6, delay: (i % 3) * 0.08, ease }}
-                className="group relative min-w-0 shrink-0 basis-[88%] snap-start overflow-hidden border border-border sm:basis-[48%] lg:basis-[31.8%]"
+                className="group relative min-w-0 w-full overflow-hidden border border-border lg:shrink-0 lg:basis-[31.8%] lg:snap-start"
               >
-                <div className="relative h-[22rem] overflow-hidden bg-muted sm:h-[23rem] lg:h-[24rem]">
+                <div className="relative h-[20rem] overflow-hidden bg-muted sm:h-[23rem] lg:h-[24rem]">
                   <Image
                     src={p.image}
                     alt={p.title}
@@ -160,7 +160,7 @@ export function Projects() {
             </div>
 
             {projects.length > 1 && (
-              <div className="mt-3 flex items-center justify-between">
+              <div className="mt-3 hidden items-center justify-between lg:flex">
                 <span className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-muted-foreground">
                   {projects.length} obras · desliza para recorrer
                 </span>

@@ -124,7 +124,7 @@ export function Catalog() {
         </div>
 
         {/* Category filter */}
-        <div className="carousel-strip mt-4 flex gap-2 overflow-x-auto pb-1 lg:mt-5">
+        <div className="mt-4 flex flex-wrap gap-2 pb-1 lg:mt-5">
           {CATEGORIES.map((c) => (
             <button
               key={c.id}
@@ -152,7 +152,7 @@ export function Catalog() {
               role="region"
               aria-label="Carrusel de materiales"
               data-section-carousel
-              className="carousel-strip flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2"
+              className="grid min-w-0 gap-4 pb-2 sm:grid-cols-2 lg:flex lg:snap-x lg:snap-mandatory lg:overflow-x-auto"
             >
             {products.map((p, i) => (
               <motion.article
@@ -161,7 +161,7 @@ export function Catalog() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-60px' }}
                 transition={{ duration: 0.6, delay: (i % 3) * 0.08, ease }}
-                className="group relative flex min-w-0 shrink-0 basis-[88%] snap-start flex-col border border-border bg-card transition-colors hover:border-foreground/40 sm:basis-[48%] lg:basis-[31.8%]"
+                className="group relative flex min-w-0 w-full flex-col border border-border bg-card transition-colors hover:border-foreground/40 lg:shrink-0 lg:basis-[31.8%] lg:snap-start"
               >
                 <div className="relative h-36 overflow-hidden bg-muted sm:h-40 lg:h-40">
                   <Image
@@ -295,7 +295,7 @@ export function Catalog() {
             </div>
 
             {products.length > 1 && (
-              <div className="mt-2 flex items-center justify-between">
+              <div className="mt-2 hidden items-center justify-between lg:flex">
                 <span className="font-mono text-[0.62rem] uppercase tracking-[0.14em] text-muted-foreground">
                   desliza las muestras
                 </span>
