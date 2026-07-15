@@ -14,7 +14,7 @@ const ITEMS = [
 export function Marquee() {
   const loop = [...ITEMS, ...ITEMS]
   return (
-    <div className="relative border-y border-border/60 bg-foreground text-background">
+    <div className="atelier-dark relative border-y border-border/60 bg-foreground text-background">
       <div className="flex overflow-hidden py-3">
         <div className="marquee-track flex shrink-0 items-center">
           {loop.map((item, i) => (

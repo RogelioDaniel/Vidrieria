@@ -330,7 +330,7 @@ export function Hero() {
               className="glass-panel absolute -right-4 top-1/3 hidden px-3 py-2 sm:block"
             >
               <div className="hud-label text-[#b87333]">traslúcida</div>
-              <div className="font-mono text-[0.7rem] text-[#100f0d]">92% luz</div>
+              <div className="font-mono text-[0.7rem] text-[#100f0d] dark:text-[#e6e8ea]">92% luz</div>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -339,7 +339,7 @@ export function Hero() {
               className="glass-panel absolute -left-6 bottom-1/4 hidden px-3 py-2 sm:block"
             >
               <div className="hud-label text-[#b87333]">espesor</div>
-              <div className="font-mono text-[0.7rem] text-[#100f0d]">10 mm</div>
+              <div className="font-mono text-[0.7rem] text-[#100f0d] dark:text-[#e6e8ea]">10 mm</div>
             </motion.div>
           </motion.div>
         </motion.div>
@@ -362,7 +362,7 @@ export function Hero() {
       </motion.div>
 
       {/* bottom fade into next section */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-[#e6e8ea]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-background" />
     </section>
   )
 }

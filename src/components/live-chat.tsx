@@ -224,7 +224,7 @@ export function LiveChat() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-11 w-11 shrink-0 rounded-full text-[var(--obsidiana)] hover:bg-black/5"
+                className="h-11 w-11 shrink-0 rounded-full text-card-foreground hover:bg-black/5 dark:hover:bg-white/10"
                 onClick={() => setOpen(false)}
                 aria-label="Cerrar chat"
               >
@@ -251,7 +251,7 @@ export function LiveChat() {
                     >
                       PR
                     </span>
-                    <span className="glass-card rounded-2xl rounded-bl-md px-3 py-2 text-sm text-[var(--obsidiana)]">
+                    <span className="glass-card rounded-2xl rounded-bl-md px-3 py-2 text-sm text-card-foreground">
                       <span className="flex items-center gap-1">
                         <Dot delay="0ms" />
                         <Dot delay="120ms" />
@@ -397,7 +397,7 @@ function ChatBubble({ m }: { m: ChatMessage }) {
         </span>
         <div className="flex max-w-[78%] flex-col items-start">
           <span
-            className="glass-card rounded-2xl rounded-bl-md px-3 py-2 text-sm text-[var(--obsidiana)]"
+            className="glass-card rounded-2xl rounded-bl-md px-3 py-2 text-sm text-card-foreground"
             style={{ wordBreak: "break-word" }}
           >
             {m.text}

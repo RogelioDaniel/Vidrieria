@@ -9,12 +9,9 @@
  * agenda) still scroll freely inside, so nothing gets hijacked. Touch devices
  * keep fully native scrolling.
  *
- * Every section change fires a themed glass transition that briefly covers the
- * viewport, hiding the reposition behind glass:
- *   · first change  → "assemble": frosted shards converge and build a pane,
- *                      then clear to reveal the next section.
- *   · later changes → "sweep": a frosted refraction band sweeps in the scroll
- *                      direction with a copper glint.
+ * Every real section change — down or up, wheel, keyboard, touch, or rail —
+ * fires the same themed transition: smoked/frosted tiles arrive from the scroll
+ * direction, assemble a pane, then clear to reveal the neighbouring section.
  *
  * A diamond dot-rail (desktop) mirrors the logo mark and tracks/jumps sections.
  */
@@ -23,7 +20,7 @@ import * as React from 'react'
 import { motion, useReducedMotion, type Variants } from 'framer-motion'
 
 const ease = [0.65, 0, 0.35, 1] as const
-const LOCK_MS = 950
+const LOCK_MS = 850
 
 const SECTIONS = [
   { id: 'top', label: 'inicio' },
@@ -34,16 +31,40 @@ const SECTIONS = [
   { id: 'clientes', label: 'clientes' },
   { id: 'cita', label: 'agenda' },
   { id: 'contacto', label: 'contacto' },
+  { id: 'pie', label: 'final' },
 ]
 
-type Transition = { key: number; effect: 'assemble' | 'sweep'; dir: 1 | -1 }
+type Transition = { key: number; dir: 1 | -1 }
 
-const SHARD_COLS = 6
-const SHARD_ROWS = 4
+function pageLocked() {
+  return (
+    getComputedStyle(document.documentElement).overflow === 'hidden' ||
+    getComputedStyle(document.body).overflow === 'hidden'
+  )
+}
 
-function introLocked() {
-  // GlassIntro locks scroll via a <style> that sets html overflow hidden.
-  return getComputedStyle(document.documentElement).overflow === 'hidden'
+function nestedScrollOwnsGesture(target: EventTarget | null, deltaY: number) {
+  if (!(target instanceof Element)) return false
+  if (target.closest('[role="dialog"], [data-radix-scroll-area-viewport]')) {
+    return true
+  }
+
+  let node: Element | null = target
+  while (node && node !== document.body) {
+    if (node instanceof HTMLElement) {
+      const style = getComputedStyle(node)
+      const scrollable = /(auto|scroll)/.test(style.overflowY)
+      if (scrollable && node.scrollHeight > node.clientHeight + 1) {
+        const canContinueDown =
+          deltaY > 0 &&
+          node.scrollTop + node.clientHeight < node.scrollHeight - 1
+        const canContinueUp = deltaY < 0 && node.scrollTop > 1
+        if (canContinueDown || canContinueUp) return true
+      }
+    }
+    node = node.parentElement
+  }
+  return false
 }
 
 export function SectionScroller() {
@@ -55,8 +76,55 @@ export function SectionScroller() {
   const animatingRef = React.useRef(false)
   const settledRef = React.useRef(false)
   const programmaticTargetRef = React.useRef<number | null>(null)
-  const transitionCountRef = React.useRef(0)
+  const transitionKeyRef = React.useRef(0)
   const coarseRef = React.useRef(false)
+
+  // Browsers normally restore the previous scroll offset on reload. PRISMA's
+  // overture starts a new visit, so always begin it at the hero instead.
+  React.useLayoutEffect(() => {
+    const navigation = window.performance.getEntriesByType(
+      'navigation',
+    )[0] as PerformanceNavigationTiming | undefined
+    const shouldReset =
+      !navigation ||
+      navigation.type === 'reload' ||
+      navigation.type === 'navigate'
+    // Preserve the expected position when the visitor uses Back/Forward.
+    if (!shouldReset) return
+
+    const previousRestoration = window.history.scrollRestoration
+    window.history.scrollRestoration = 'manual'
+    let raf = 0
+    let secondRaf = 0
+    let settleTimer = 0
+
+    const forceTop = () => {
+      const root = document.documentElement
+      const previousBehavior = root.style.scrollBehavior
+      root.style.scrollBehavior = 'auto'
+      window.scrollTo(0, 0)
+      root.style.scrollBehavior = previousBehavior
+    }
+
+    const resetAfterLayout = () => {
+      forceTop()
+      raf = window.requestAnimationFrame(() => {
+        forceTop()
+        secondRaf = window.requestAnimationFrame(forceTop)
+      })
+      settleTimer = window.setTimeout(forceTop, 250)
+    }
+
+    resetAfterLayout()
+    window.addEventListener('pageshow', resetAfterLayout)
+    return () => {
+      window.history.scrollRestoration = previousRestoration
+      window.removeEventListener('pageshow', resetAfterLayout)
+      window.cancelAnimationFrame(raf)
+      window.cancelAnimationFrame(secondRaf)
+      window.clearTimeout(settleTimer)
+    }
+  }, [])
 
   const els = React.useCallback(
     () => SECTIONS.map((s) => document.getElementById(s.id)),
@@ -78,12 +146,11 @@ export function SectionScroller() {
   const play = React.useCallback(
     (from: number, to: number) => {
       if (reduce) return
-      const effect: Transition['effect'] =
-        transitionCountRef.current === 0 && !coarseRef.current
-          ? 'assemble'
-          : 'sweep'
-      transitionCountRef.current += 1
-      setTransition({ key: Date.now(), effect, dir: to > from ? 1 : -1 })
+      transitionKeyRef.current += 1
+      setTransition({
+        key: transitionKeyRef.current,
+        dir: to > from ? 1 : -1,
+      })
     },
     [reduce],
   )
@@ -92,9 +159,9 @@ export function SectionScroller() {
     (to: number) => {
       const target = Math.max(0, Math.min(SECTIONS.length - 1, to))
       const from = activeRef.current
-      if (target === from || animatingRef.current) return
+      if (target === from || animatingRef.current) return false
       const el = document.getElementById(SECTIONS[target].id)
-      if (!el) return
+      if (!el) return false
 
       animatingRef.current = true
       programmaticTargetRef.current = target
@@ -107,6 +174,7 @@ export function SectionScroller() {
         animatingRef.current = false
         programmaticTargetRef.current = null
       }, LOCK_MS)
+      return true
     },
     [play, reduce],
   )
@@ -122,7 +190,16 @@ export function SectionScroller() {
       !coarseRef.current && window.matchMedia('(pointer: fine)').matches
 
     const onWheel = (e: WheelEvent) => {
-      if (reduce || !desktop() || introLocked()) return
+      if (
+        reduce ||
+        !desktop() ||
+        pageLocked() ||
+        e.ctrlKey ||
+        e.metaKey ||
+        e.defaultPrevented ||
+        nestedScrollOwnsGesture(e.target, e.deltaY)
+      )
+        return
       if (animatingRef.current) {
         e.preventDefault()
         return
@@ -135,16 +212,14 @@ export function SectionScroller() {
       const atTop = r.top >= -2
 
       if (e.deltaY > 6 && idx < SECTIONS.length - 1 && atBottom) {
-        e.preventDefault()
-        goTo(idx + 1)
+        if (goTo(idx + 1)) e.preventDefault()
       } else if (e.deltaY < -6 && idx > 0 && atTop) {
-        e.preventDefault()
-        goTo(idx - 1)
+        if (goTo(idx - 1)) e.preventDefault()
       }
     }
 
     const onKey = (e: KeyboardEvent) => {
-      if (reduce || introLocked() || animatingRef.current) return
+      if (reduce || pageLocked() || animatingRef.current) return
       const t = e.target as HTMLElement | null
       // Don't hijack arrows from form fields or ARIA widgets that use them
       // (Radix slider / select / listbox / menu in the quote & booking forms).
@@ -163,15 +238,13 @@ export function SectionScroller() {
           ? el.getBoundingClientRect().bottom <= window.innerHeight + 2
           : true
         if (atBottom && idx < SECTIONS.length - 1) {
-          e.preventDefault()
-          goTo(idx + 1)
+          if (goTo(idx + 1)) e.preventDefault()
         }
       } else if (e.key === 'PageUp' || e.key === 'ArrowUp') {
         const el = document.getElementById(SECTIONS[idx].id)
         const atTop = el ? el.getBoundingClientRect().top >= -2 : true
         if (atTop && idx > 0) {
-          e.preventDefault()
-          goTo(idx - 1)
+          if (goTo(idx - 1)) e.preventDefault()
         }
       }
     }
@@ -222,7 +295,6 @@ export function SectionScroller() {
       {transition && !reduce && (
         <GlassTransition
           key={transition.key}
-          effect={transition.effect}
           dir={transition.dir}
           onDone={clearTransition}
         />
@@ -245,11 +317,11 @@ export function SectionScroller() {
               <span
                 className={`block rotate-45 border transition-all duration-300 ${
                   isActive
-                    ? 'h-2.5 w-2.5 border-[#b87333] bg-[#b87333] shadow-[0_0_10px_rgba(184,115,51,0.6)]'
-                    : 'h-1.5 w-1.5 border-[#7f858f] opacity-50 group-hover:opacity-100'
+                    ? 'h-2.5 w-2.5 border-accent bg-accent shadow-[0_0_10px_rgba(184,115,51,0.6)]'
+                    : 'h-1.5 w-1.5 border-muted-foreground opacity-50 group-hover:opacity-100'
                 }`}
               />
-              <span className="pointer-events-none absolute right-7 whitespace-nowrap font-mono text-[0.6rem] uppercase tracking-[0.16em] text-[#7f858f] opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+              <span className="pointer-events-none absolute right-7 whitespace-nowrap font-mono text-[0.6rem] uppercase tracking-[0.16em] text-muted-foreground opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                 {s.label}
               </span>
             </button>
@@ -263,11 +335,9 @@ export function SectionScroller() {
 /* ---------- transition overlays ---------- */
 
 function GlassTransition({
-  effect,
   dir,
   onDone,
 }: {
-  effect: 'assemble' | 'sweep'
   dir: 1 | -1
   onDone: () => void
 }) {
@@ -278,21 +348,33 @@ function GlassTransition({
     return () => window.clearTimeout(t)
   }, [onDone])
 
-  if (effect === 'assemble') return <AssembleGlass onDone={onDone} />
-  return <SweepGlass dir={dir} onDone={onDone} />
+  return <AssembleGlass dir={dir} onDone={onDone} />
 }
 
-// Frosted shards converge from scattered positions into a full pane, then the
-// pane clears — "gathering glass to build the next section".
-function AssembleGlass({ onDone }: { onDone: () => void }) {
-  const shards = React.useMemo(
+// Frosted panes converge from the gesture's direction into a full sheet, then
+// clear — "gathering glass to build the next section".
+function AssembleGlass({
+  dir,
+  onDone,
+}: {
+  dir: 1 | -1
+  onDone: () => void
+}) {
+  const compact =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(max-width: 640px)').matches
+  const columns = compact ? 4 : 6
+  const rows = compact ? 6 : 4
+  const panes = React.useMemo(
     () =>
-      Array.from({ length: SHARD_COLS * SHARD_ROWS }).map(() => ({
-        x: (Math.random() - 0.5) * 180,
-        y: (Math.random() - 0.5) * 180,
-        r: (Math.random() - 0.5) * 90,
+      Array.from({ length: columns * rows }).map(() => ({
+        x: (Math.random() - 0.5) * (compact ? 90 : 180),
+        y:
+          dir * (35 + Math.random() * (compact ? 90 : 150)) +
+          (Math.random() - 0.5) * 70,
+        r: (Math.random() - 0.5) * (compact ? 36 : 70),
       })),
-    [],
+    [columns, compact, dir, rows],
   )
 
   const container: Variants = {
@@ -321,87 +403,28 @@ function AssembleGlass({ onDone }: { onDone: () => void }) {
       className="pointer-events-none fixed inset-0 z-[85] overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: [0, 1, 1, 0] }}
-      transition={{ duration: 0.95, times: [0, 0.3, 0.62, 1], ease }}
+      transition={{ duration: 0.82, times: [0, 0.24, 0.62, 1], ease }}
       onAnimationComplete={onDone}
     >
       <motion.div
         className="grid h-full w-full"
         style={{
-          gridTemplateColumns: `repeat(${SHARD_COLS}, 1fr)`,
-          gridTemplateRows: `repeat(${SHARD_ROWS}, 1fr)`,
+          gridTemplateColumns: `repeat(${columns}, 1fr)`,
+          gridTemplateRows: `repeat(${rows}, 1fr)`,
         }}
         variants={container}
         initial="hidden"
         animate="show"
       >
-        {shards.map((c, i) => (
+        {panes.map((c, i) => (
           <motion.div
             key={i}
             custom={c}
             variants={shardV}
-            className="h-full w-full"
-            style={{
-              background:
-                'linear-gradient(135deg, rgba(255,255,255,0.5) 0%, rgba(194,208,216,0.32) 45%, rgba(184,115,51,0.14) 100%)',
-              backdropFilter: 'blur(6px)',
-              WebkitBackdropFilter: 'blur(6px)',
-              boxShadow:
-                'inset 0 0 0 1px rgba(255,255,255,0.4), inset 0 0 22px rgba(184,115,51,0.08)',
-            }}
+            className="section-transition-pane h-full w-full"
           />
         ))}
       </motion.div>
     </motion.div>
-  )
-}
-
-// A frosted refraction band sweeps across the viewport in the scroll direction.
-function SweepGlass({ dir, onDone }: { dir: 1 | -1; onDone: () => void }) {
-  // On phones this fires on every native section crossing, so skip the
-  // whole-viewport backdrop-filter (very GPU-heavy) and use a translucent
-  // frost tint that still reads as glass but is cheap to composite.
-  const coarse =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(pointer: coarse)').matches
-
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-[85] overflow-hidden"
-    >
-      {/* frost bloom */}
-      <motion.div
-        className="absolute inset-0"
-        style={
-          coarse
-            ? {
-                background:
-                  'linear-gradient(180deg, rgba(194,208,216,0.5), rgba(184,115,51,0.16))',
-              }
-            : {
-                backdropFilter: 'blur(9px) saturate(115%)',
-                WebkitBackdropFilter: 'blur(9px) saturate(115%)',
-                background:
-                  'linear-gradient(180deg, rgba(194,208,216,0.14), rgba(184,115,51,0.06))',
-              }
-        }
-        initial={{ opacity: 0 }}
-        animate={{ opacity: [0, coarse ? 0.7 : 0.9, 0] }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-      />
-      {/* refraction band */}
-      <motion.div
-        className="absolute inset-x-[-8%] h-[55vh]"
-        style={{
-          background:
-            'linear-gradient(180deg, transparent, rgba(255,255,255,0.35) 30%, rgba(209,138,69,0.35) 55%, rgba(194,208,216,0.2) 70%, transparent)',
-          filter: 'blur(6px)',
-        }}
-        initial={{ y: dir === 1 ? '120vh' : '-75vh', skewY: -5 }}
-        animate={{ y: dir === 1 ? '-75vh' : '120vh', skewY: -5 }}
-        transition={{ duration: 0.6, ease }}
-        onAnimationComplete={onDone}
-      />
-    </div>
   )
 }

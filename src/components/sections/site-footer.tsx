@@ -37,7 +37,7 @@ const COLS = [
 
 export function SiteFooter() {
   return (
-    <footer className="mt-auto border-t border-border bg-foreground text-background">
+    <footer id="pie" className="atelier-dark mt-auto border-t border-border bg-foreground text-background">
       <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
         {/* CTA banner */}
         <div className="flex flex-col items-start justify-between gap-6 border-b border-white/10 pb-12 md:flex-row md:items-end">

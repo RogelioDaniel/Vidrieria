@@ -42,7 +42,7 @@ const STEPS = [
 export function Process() {
   const reduce = useReducedMotion()
   return (
-    <section id="proceso" className="relative overflow-hidden bg-foreground py-24 text-background sm:py-32">
+    <section id="proceso" className="atelier-dark relative overflow-hidden bg-foreground py-24 text-background sm:py-32">
       <div
         className="absolute inset-0 opacity-30"
         style={{

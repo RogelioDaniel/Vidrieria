@@ -40,13 +40,32 @@ export function Testimonials() {
 
   if (loading) {
     return (
-      <section className="flex h-64 items-center justify-center bg-background">
+      <section id="clientes" className="flex h-64 items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-accent" />
       </section>
     )
   }
 
-  if (items.length === 0) return null
+  if (items.length === 0) {
+    return (
+      <section
+        id="clientes"
+        className="relative flex min-h-[42svh] items-center border-y border-border bg-background py-16"
+      >
+        <div className="mx-auto max-w-2xl px-5 text-center sm:px-8">
+          <div className="hud-label text-accent">05 · clientes</div>
+          <h2 className="mt-4 font-display text-3xl font-light tracking-tight sm:text-4xl">
+            Cada instalación se entrega
+            <br />
+            <span className="italic text-accent">verificada en sitio.</span>
+          </h2>
+          <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base">
+            Las opiniones documentadas del atelier estarán disponibles aquí.
+          </p>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section id="clientes" className="relative overflow-hidden border-y border-border bg-background py-24 sm:py-32">

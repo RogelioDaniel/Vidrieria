@@ -63,7 +63,7 @@ export function LivePresence({
   const palette =
     variant === "solid"
       ? "bg-white/10 text-white border-white/20"
-      : "bg-[var(--vidrio-soft)] text-[var(--obsidiana)] border-black/10";
+      : "border-border bg-card/85 text-card-foreground";
 
   return (
     <span
