@@ -25,19 +25,38 @@ const NAV = [
 ]
 
 export function SiteHeader() {
+  // The header is hidden while the hero fills the viewport and slides in only
+  // once the visitor scrolls into the content. Kept separate from `scrolled`
+  // (which just toggles the transparent → solid styling) so the reveal can be
+  // gated on scroll position while the chrome styling stays driven by depth.
   const [scrolled, setScrolled] = React.useState(false)
+  const [visible, setVisible] = React.useState(false)
   const [open, setOpen] = React.useState(false)
 
   React.useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24)
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    const update = () => {
+      setScrolled(window.scrollY > 24)
+      // Reveal roughly as the hero exits — threshold tracks the viewport so it
+      // adapts to resize and the mobile URL bar showing/hiding.
+      setVisible(window.scrollY > window.innerHeight - 96)
+    }
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
+    }
   }, [])
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-40 transition-all duration-300 ${
+      aria-hidden={!visible}
+      className={`fixed inset-x-0 top-0 z-40 transition-all duration-500 ease-[cubic-bezier(0.65,0,0.35,1)] ${
+        visible
+          ? 'translate-y-0 opacity-100'
+          : '-translate-y-full opacity-0 pointer-events-none'
+      } ${
         scrolled
           ? 'bg-background/80 backdrop-blur-xl border-b border-border/60'
           : 'bg-transparent border-b border-transparent'

@@ -6,7 +6,9 @@ import {
   animate,
   motion,
   useMotionValue,
+  useMotionValueEvent,
   useReducedMotion,
+  useScroll,
   useTransform,
   type MotionValue,
 } from 'framer-motion'
@@ -331,7 +333,11 @@ function GlassShard({
   )
 }
 
-export function HeroGlassCarousel() {
+export function HeroGlassCarousel({
+  heroScroll,
+}: {
+  heroScroll: MotionValue<number>
+}) {
   const reduce = useReducedMotion()
   const [slides, setSlides] = React.useState<readonly GlassSlide[]>(GLASS_SLIDES)
   const [position, setPosition] = React.useState(0)
@@ -364,6 +370,28 @@ export function HeroGlassCarousel() {
   })
   const staticMode = Boolean(reduce) || saveData
   const slide = slides[position] ?? GLASS_SLIDES[0]
+
+  // While a manual interaction (hover / click / swipe / autoplay swap) drives
+  // the fracture, scroll must not fight it. Mirror the React state into a ref
+  // so the scroll handler can read it without subscribing to re-renders.
+  const busyRef = React.useRef(false)
+  React.useEffect(() => {
+    busyRef.current = busy || moving
+  }, [busy, moving])
+
+  // Drive the same shard fracture from the page scroll: 0 when the hero fills
+  // the viewport, 1 by the time it has scrolled away. In static mode (reduced
+  // motion / save-data) we leave the pane intact, matching the existing policy.
+  const scrollFracture = useTransform(
+    heroScroll,
+    [0, 0.7],
+    [0, 1],
+    { clamp: true },
+  )
+  useMotionValueEvent(scrollFracture, 'change', (value) => {
+    if (staticMode || busyRef.current) return
+    fracture.set(value)
+  })
 
   const clearScheduledFrames = React.useCallback(() => {
     frameRefs.current.forEach((frame) => cancelAnimationFrame(frame))

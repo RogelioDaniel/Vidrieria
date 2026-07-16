@@ -161,7 +161,7 @@ export function Catalog() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-60px' }}
                 transition={{ duration: 0.6, delay: (i % 3) * 0.08, ease }}
-                className="group relative flex min-w-0 w-full flex-col border border-border bg-card transition-colors hover:border-foreground/40 lg:shrink-0 lg:basis-[31.8%] lg:snap-start"
+                className="group relative flex min-w-0 w-full flex-col glass-card rounded-sm transition-colors hover:border-[#b87333]/50 lg:shrink-0 lg:basis-[31.8%] lg:snap-start"
               >
                 <div className="relative h-36 overflow-hidden bg-muted sm:h-40 lg:h-40">
                   <Image

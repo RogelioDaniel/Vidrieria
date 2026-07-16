@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion'
 import { ArrowDown, ArrowUpRight } from 'lucide-react'
 import Link from 'next/link'
 import { LivePresence } from '@/components/live-presence'
@@ -12,9 +12,32 @@ const easeInOutCubic = [0.65, 0, 0.35, 1] as const
 
 export function Hero() {
   const reduce = useReducedMotion()
+  const sectionRef = React.useRef<HTMLElement | null>(null)
+
+  // 0 while the hero fills the viewport, 1 once it has fully scrolled away.
+  // Powers both the shard fracture (passed into the carousel) and the
+  // parallax+fade of the carousel wrapper itself. The carousel self-gates on
+  // reduced motion (staticMode), and here the wrapper transforms collapse to
+  // no-ops under the same policy.
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start start', 'end start'],
+  })
+  const heroScroll = scrollYProgress
+
+  // The whole glass pane lifts and dissolves as the hero exits, so the page
+  // feels assembled from glass instead of scrolling past a static image.
+  const carouselY = useTransform(scrollYProgress, [0, 1], [0, reduce ? 0 : -90])
+  const carouselOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.55, 1],
+    reduce ? [1, 1, 1] : [1, 0.85, 0],
+    { clamp: true },
+  )
 
   return (
     <section
+      ref={sectionRef}
       id="top"
       className="relative isolate flex h-[100svh] min-h-0 items-center overflow-hidden bg-[#100f0d] text-[#e6e8ea]"
     >
@@ -157,15 +180,19 @@ export function Hero() {
           </motion.div>
         </div>
 
-        {/* Right: interactive material carousel */}
+        {/* Right: interactive material carousel. Opacity is driven by the
+            scroll progress (see carouselOpacity) rather than an entrance
+            tween, so a motion value on style.opacity won't clobber it; the
+            scale-in still gives the pane a soft reveal after the intro. */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ scale: 0.96 }}
+          animate={{ scale: 1 }}
           transition={{ delay: 0.4, duration: 1.1, ease: easeInOutCubic }}
+          style={{ y: carouselY, opacity: carouselOpacity }}
           className="relative flex min-h-0 items-center justify-center lg:col-span-5"
         >
           <div className="relative mx-auto aspect-[3/4] h-[30svh] min-h-48 max-h-[17rem] w-auto lg:h-auto lg:min-h-0 lg:max-h-none lg:w-full lg:max-w-sm">
-            <HeroGlassCarousel />
+            <HeroGlassCarousel heroScroll={heroScroll} />
           </div>
         </motion.div>
       </div>
