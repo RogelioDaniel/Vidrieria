@@ -121,7 +121,7 @@ export function Appointments() {
       id="cita"
       className="viewport-section relative bg-background py-10 sm:py-14 lg:py-12"
     >
-      <div className="mx-auto max-w-7xl px-5 sm:px-8">
+      <div className="viewport-section__body mx-auto max-w-7xl px-5 sm:px-8">
         <div className="flex flex-col gap-4 border-b border-border pb-5 sm:pb-6 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
             <GlassReveal>

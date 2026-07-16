@@ -97,6 +97,27 @@ function nestedScrollOwnsGesture(target: EventTarget | null, deltaY: number) {
   return false
 }
 
+/**
+ * On desktop each guided stop is pinned to one viewport and its content
+ * scrolls inside (see `.viewport-section > *`). The keyboard handler must
+ * advance to the next stop only once that inner panel reaches its real edge,
+ * mirroring what the wheel handler enforces via nestedScrollOwnsGesture.
+ */
+function sectionInnerAtEdge(section: HTMLElement | null, dir: 1 | -1): boolean {
+  if (!section) return true
+  const scroller = section.querySelector<HTMLElement>('.viewport-section__body')
+  if (!scroller) return true
+  const style = getComputedStyle(scroller)
+  const scrollable = /(auto|scroll)/.test(style.overflowY)
+  if (!scrollable) return true
+  // Not enough content to scroll — already at edge.
+  if (scroller.scrollHeight <= scroller.clientHeight + 1) return true
+  if (dir > 0) {
+    return scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1
+  }
+  return scroller.scrollTop <= 1
+}
+
 export function SectionScroller() {
   const reduce = useReducedMotion()
   const [active, setActive] = React.useState(0)
@@ -502,15 +523,13 @@ export function SectionScroller() {
       const idx = currentIndex()
       if (e.key === 'PageDown' || e.key === 'ArrowDown') {
         const el = document.getElementById(SECTIONS[idx].id)
-        const atBottom = el
-          ? el.getBoundingClientRect().bottom <= window.innerHeight + 2
-          : true
+        const atBottom = sectionInnerAtEdge(el, 1)
         if (atBottom && idx < SECTIONS.length - 1) {
           if (goTo(idx + 1)) e.preventDefault()
         }
       } else if (e.key === 'PageUp' || e.key === 'ArrowUp') {
         const el = document.getElementById(SECTIONS[idx].id)
-        const atTop = el ? el.getBoundingClientRect().top >= -2 : true
+        const atTop = sectionInnerAtEdge(el, -1)
         if (atTop && idx > 0) {
           if (goTo(idx - 1)) e.preventDefault()
         }

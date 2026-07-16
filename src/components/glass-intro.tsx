@@ -912,7 +912,10 @@ export function GlassNavigationTransition({
         reveal = 1
         opacity = 1 - easeInOutCubic(k)
         backdropOpacity = 1 - easeInOutCubic(k)
-        uniforms.uGlint.value = k
+        // uGlint stays at 0. On the loading overture the copper refraction
+        // "confirms" an intact pane, but mid-navigation it reads as a stray
+        // flash right as the target DOM is revealed — so the transition ends
+        // by dissolving, never by glinting.
       }
 
       uniforms.uShatter.value = shatter

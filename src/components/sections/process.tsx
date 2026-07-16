@@ -53,7 +53,7 @@ export function Process() {
             'radial-gradient(circle at 15% 30%, rgba(184,115,51,0.35) 0%, transparent 40%), radial-gradient(circle at 85% 70%, rgba(194,208,216,0.15) 0%, transparent 40%)',
         }}
       />
-      <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
+      <div className="viewport-section__body relative mx-auto max-w-7xl px-5 sm:px-8">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-12">
           {/* Left intro */}
           <div className="lg:col-span-5">

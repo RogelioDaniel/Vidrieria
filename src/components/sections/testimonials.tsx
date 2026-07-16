@@ -77,7 +77,7 @@ export function Testimonials() {
           backgroundSize: '4px 4px',
         }}
       />
-      <div className="relative mx-auto max-w-5xl px-5 sm:px-8">
+      <div className="viewport-section__body relative mx-auto max-w-5xl px-5 sm:px-8">
         <div className="mb-12 flex flex-col items-center text-center">
           <GlassReveal className="flex flex-col items-center">
             <div className="mb-4 flex items-center gap-3">

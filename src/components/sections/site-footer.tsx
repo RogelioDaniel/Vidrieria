@@ -38,7 +38,7 @@ const COLS = [
 export function SiteFooter() {
   return (
     <footer id="pie" className="viewport-section atelier-dark mt-auto border-t border-border bg-foreground text-background">
-      <div className="mx-auto w-full max-w-7xl px-5 sm:px-8">
+      <div className="viewport-section__body mx-auto w-full max-w-7xl px-5 sm:px-8">
         {/* CTA banner */}
         <div className="flex flex-col items-start justify-between gap-4 border-b border-white/10 pb-6 md:flex-row md:items-end md:gap-6 md:pb-8">
           <div className="max-w-xl">

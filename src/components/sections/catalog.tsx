@@ -96,7 +96,7 @@ export function Catalog() {
 
   return (
     <section id="catalogo" className="viewport-section relative bg-background">
-      <div className="mx-auto max-w-7xl px-5 sm:px-8">
+      <div className="viewport-section__body mx-auto max-w-7xl px-5 sm:px-8">
         {/* Section header */}
         <div className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-end md:justify-between lg:pb-6">
           <div className="max-w-2xl">

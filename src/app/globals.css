@@ -297,8 +297,11 @@
 .dark ::-webkit-scrollbar-thumb:hover { background: rgba(209,138,69,0.55); background-clip: content-box; }
 
 /* Each guided stop reads as one workshop sheet beneath the 64px header.
-   Content may still grow under zoom or unusually short viewports: nothing is
-   clipped, and SectionScroller only advances once the real edge is reached. */
+   Touch keeps fully native scrolling (free document flow), so it uses a floor
+   height that lets the section grow naturally. On fine-pointer (desktop) the
+   SectionScroller drives guided "pages", so each stop is pinned to one viewport
+   and any overflow scrolls *inside* the sheet — the document never stretches,
+   which is what makes the guided handoff read as switching pages. */
 .viewport-section {
   display: grid;
   min-height: calc(100svh - 4rem);
@@ -309,6 +312,32 @@
 @supports (height: 100dvh) {
   .viewport-section {
     min-height: calc(100dvh - 4rem);
+  }
+}
+
+/* Desktop: one viewport per sheet. The inner content area scrolls instead of
+   the document, so a tall section never straddles two guided stops. Only
+   applied where the SectionScroller runs (fine pointer). The scrollable inner
+   panel is opt-in via .viewport-section__body so decorative absolutely-
+   positioned children keep covering the whole sheet. */
+@media (pointer: fine) {
+  .viewport-section {
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .viewport-section__body {
+    max-height: 100%;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+}
+
+@supports (height: 100dvh) {
+  @media (pointer: fine) {
+    .viewport-section {
+      height: 100dvh;
+    }
   }
 }
 

@@ -149,7 +149,7 @@ export function QuoteCalculator() {
             'radial-gradient(circle at 80% 20%, rgba(184,115,51,0.22) 0%, transparent 45%), radial-gradient(circle at 10% 90%, rgba(194,208,216,0.12) 0%, transparent 40%)',
         }}
       />
-      <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
+      <div className="viewport-section__body relative mx-auto max-w-7xl px-5 sm:px-8">
         <div className="flex flex-col gap-3 border-b border-white/10 pb-5 md:flex-row md:items-end md:justify-between md:gap-6 md:pb-7">
           <div className="max-w-2xl">
             <GlassReveal>

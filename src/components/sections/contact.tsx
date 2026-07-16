@@ -99,7 +99,7 @@ export function Contact() {
       id="contacto"
       className="viewport-section relative overflow-hidden border-t border-border bg-background py-10 sm:py-14 lg:py-12"
     >
-      <div className="mx-auto max-w-7xl px-5 sm:px-8">
+      <div className="viewport-section__body mx-auto max-w-7xl px-5 sm:px-8">
         <div
           role="tablist"
           aria-label="Opciones de contacto"
